@@ -76,6 +76,21 @@ function ScanIcon({ className, style }: IconProps) {
   );
 }
 
+function LogoIcon({ className, style }: IconProps) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Leaf outline + center vein */}
+      <path d="M12 20 C8 17 5 13.5 5 9.5 C5 5.5 8 3 12 3 C16 3 19 5.5 19 9.5 C19 13.5 16 17 12 20 Z" />
+      <line x1="12" y1="20" x2="12" y2="5" />
+      {/* Side veins */}
+      <path d="M12 9.5 L9.5 7.5" />
+      <path d="M12 12.5 L9.5 10.5" />
+      <path d="M12 9.5 L14.5 7.5" />
+      <path d="M12 12.5 L14.5 10.5" />
+    </svg>
+  );
+}
+
 // ── Fruit SVG Gradient Defs (shared across page) ─────────────────────────────
 
 function FruitGradientDefs() {
@@ -404,7 +419,7 @@ function FloatingAvocado3D() {
 
   return (
     // Outer wrapper rocks the entire card in 3D perspective
-    <div className="card-rock-3d" style={{ width: 340 }}>
+    <div className="card-rock-3d w-full" style={{ maxWidth: 340 }}>
       <div
         className="relative select-none overflow-hidden rounded-3xl border border-green-100"
         style={{
@@ -416,7 +431,7 @@ function FloatingAvocado3D() {
         <div className="flex items-center justify-between px-6 pt-6 pb-0">
           <div>
             <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: "#00C37A" }}>
-              SafeScan Analysis
+              Surfelt Analysis
             </p>
             <p className="text-xl font-black text-gray-900 mt-0.5">Hass Avocado</p>
           </div>
@@ -424,7 +439,7 @@ function FloatingAvocado3D() {
         </div>
 
         {/* 3D Stage */}
-        <div className="relative flex items-center justify-center" style={{ height: 310 }}>
+        <div className="relative flex items-center justify-center py-10">
           {/* Ambient radial glow */}
           <div
             className="absolute inset-0"
@@ -511,8 +526,8 @@ const heroIngredients: { name: string; grade: Grade }[] = [
 function AppMockup() {
   return (
     <div
-      className="anim-fade-up anim-fade-up-3 anim-float relative mx-auto"
-      style={{ width: 270, filter: "drop-shadow(0 32px 48px rgba(0,0,0,0.12))" }}
+      className="anim-fade-up anim-fade-up-3 anim-float relative mx-auto w-full"
+      style={{ maxWidth: 270, filter: "drop-shadow(0 32px 48px rgba(0,0,0,0.12))" }}
     >
       {/* Phone shell */}
       <div
@@ -528,9 +543,9 @@ function AppMockup() {
           {/* App bar */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
             <div className="flex items-center gap-1.5">
-              <ShieldCheckIcon className="w-4 h-4" style={{ color: "#00C37A" } as React.CSSProperties} />
+              <LogoIcon className="w-4 h-4" style={{ color: "#00C37A" } as React.CSSProperties} />
               <span className="text-xs font-extrabold text-gray-900">
-                Safe<span style={{ color: "#00C37A" }}>Scan</span>
+                Pur<span style={{ color: "#00C37A" }}>a</span>
               </span>
             </div>
             <CameraIcon className="w-4 h-4 text-gray-400" />
@@ -586,23 +601,20 @@ function AppMockup() {
 
 function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-100">
+    <header className="sticky top-0 z-50 w-full border-b border-gray-100/80 backdrop-blur-md" style={{ backgroundColor: "rgba(255,255,255,0.88)", boxShadow: "0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" }}>
+      {/* Hidden checkbox powers the CSS-only mobile menu */}
+      <input type="checkbox" id="mobile-nav-toggle" className="sr-only peer" aria-hidden="true" />
+
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-xl"
-              style={{ backgroundColor: "#00C37A" }}
-            >
-              <ShieldCheckIcon className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-lg font-extrabold text-gray-900 tracking-tight">
-              Safe<span style={{ color: "#00C37A" }}>Scan</span>
+          <a href="#" className="flex items-center cursor-pointer">
+            <span className="font-display text-2xl font-bold tracking-tight text-gray-900">
+              Surf<span style={{ color: "#00C37A" }}>elt</span>
             </span>
-          </div>
+          </a>
 
-          {/* Nav links */}
+          {/* Desktop nav links */}
           <nav className="hidden md:flex items-center gap-8" aria-label="Primary navigation">
             {[
               { label: "How It Works", href: "#how-it-works" },
@@ -619,24 +631,39 @@ function Navbar() {
             ))}
           </nav>
 
-          {/* CTA */}
-          <div className="flex items-center gap-3">
-            <a
-              href="#"
-              className="hidden sm:block text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors duration-150 cursor-pointer"
-            >
-              Sign In
-            </a>
-            <a
-              href="#"
-              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white transition-all duration-150 cursor-pointer hover:opacity-90 active:scale-95"
-              style={{ backgroundColor: "#00C37A" }}
-            >
-              Try Free
-              <ArrowRightIcon className="w-3.5 h-3.5" />
-            </a>
-          </div>
+          {/* Hamburger — mobile only */}
+          <label
+            htmlFor="mobile-nav-toggle"
+            className="md:hidden cursor-pointer p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-150"
+            aria-label="Toggle navigation menu"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </label>
         </div>
+      </div>
+
+      {/* Mobile dropdown — shown via peer-checked */}
+      <div
+        className="hidden peer-checked:block md:hidden border-t border-gray-100"
+        style={{ backgroundColor: "rgba(255,255,255,0.97)" }}
+      >
+        <nav className="mx-auto max-w-6xl px-4 py-3 space-y-1" aria-label="Mobile navigation">
+          {[
+            { label: "How It Works", href: "#how-it-works" },
+            { label: "Grades",       href: "#grades" },
+            { label: "Features",     href: "#features" },
+          ].map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              className="block py-3 text-base font-semibold text-gray-700 hover:text-gray-900 border-b border-gray-100 last:border-0 cursor-pointer"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
       </div>
     </header>
   );
@@ -646,52 +673,52 @@ function Navbar() {
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-white pt-16 pb-20 sm:pt-24 sm:pb-28">
-      {/* Soft green blob background */}
+    <section className="relative overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-28" style={{ background: "linear-gradient(160deg, #ffffff 0%, #f4fdf9 45%, #eaf8f1 100%)" }}>
+      {/* Top-right green radial glow */}
       <div
-        className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full -translate-y-1/3 translate-x-1/3 opacity-40"
-        style={{ background: "radial-gradient(circle, #E6FAF3 0%, transparent 70%)" }}
+        className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full -translate-y-1/4 translate-x-1/4 pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(0,195,122,0.18) 0%, rgba(0,195,122,0.06) 45%, transparent 70%)" }}
         aria-hidden="true"
       />
+      {/* Bottom-left accent */}
       <div
-        className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full translate-y-1/2 -translate-x-1/3 opacity-30"
-        style={{ background: "radial-gradient(circle, #E6FAF3 0%, transparent 70%)" }}
+        className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full translate-y-1/3 -translate-x-1/4 pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(0,195,122,0.10) 0%, transparent 65%)" }}
+        aria-hidden="true"
+      />
+      {/* Subtle grid texture */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.025]"
+        style={{ backgroundImage: "radial-gradient(circle, #00C37A 1px, transparent 1px)", backgroundSize: "32px 32px" }}
         aria-hidden="true"
       />
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
           {/* Copy */}
           <div>
-            {/* Badge */}
-            <div className="anim-fade-up anim-fade-up-1 inline-flex items-center gap-2 rounded-full px-3 py-1 mb-6 text-xs font-bold uppercase tracking-wide" style={{ backgroundColor: "#E6FAF3", color: "#00956A" }}>
-              <SparklesIcon className="w-3.5 h-3.5" />
-              AI-Powered Safety Analysis
-            </div>
-
-            <h1 className="anim-fade-up anim-fade-up-2 text-4xl sm:text-5xl lg:text-[56px] font-black text-gray-900 leading-[1.1] tracking-tight mb-6">
+            <h1 className="anim-fade-up anim-fade-up-1 font-display text-4xl sm:text-5xl lg:text-[58px] font-black text-gray-900 leading-[1.08] tracking-tight mb-6">
               Know what&apos;s{" "}
-              <span style={{ color: "#00C37A" }}>really</span>{" "}
+              <em className="not-italic" style={{ color: "#00C37A", fontStyle: "italic" }}>really</em>{" "}
               in your products.
             </h1>
 
-            <p className="anim-fade-up anim-fade-up-3 text-lg text-gray-500 leading-relaxed mb-8 max-w-lg font-medium">
-              Photograph any label. Our AI reads every ingredient, grades each one
-              A–D, and gives you a full safety report in under 3 seconds.
+            <p className="anim-fade-up anim-fade-up-3 text-lg text-gray-600 leading-relaxed mb-8 max-w-120 font-medium" style={{ lineHeight: "1.7" }}>
+              Photograph any label. Our AI reads every ingredient and grades each one A to D, giving you a full safety report in seconds.
             </p>
 
             <div className="anim-fade-up anim-fade-up-4 flex flex-col sm:flex-row gap-3 mb-8">
               <a
                 href="#"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl px-7 py-4 text-base font-bold text-white cursor-pointer transition-all duration-150 hover:opacity-90 active:scale-95"
-                style={{ backgroundColor: "#00C37A", boxShadow: "0 8px 24px rgba(0,195,122,0.3)" }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-95"
+                style={{ backgroundColor: "#00C37A", boxShadow: "0 8px 24px rgba(0,195,122,0.35), 0 2px 8px rgba(0,195,122,0.15)" }}
               >
-                Scan a Product — It&apos;s Free
-                <ArrowRightIcon className="w-4 h-4" />
+                Scan a Product Free
+                <ArrowRightIcon className="w-3.5 h-3.5" />
               </a>
               <a
                 href="#how-it-works"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl px-7 py-4 text-base font-bold text-gray-700 border-2 border-gray-200 cursor-pointer transition-all duration-150 hover:border-gray-300 hover:text-gray-900 active:scale-95"
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-gray-700 border-2 border-gray-200 cursor-pointer transition-all duration-150 hover:border-gray-300 hover:text-gray-900 active:scale-95"
               >
                 See How It Works
               </a>
@@ -701,15 +728,11 @@ function HeroSection() {
             <div className="anim-fade-up anim-fade-up-4 flex flex-wrap items-center gap-5 text-sm text-gray-400 font-semibold">
               <span className="flex items-center gap-1.5">
                 <CheckIcon className="w-4 h-4" style={{ color: "#00C37A" } as React.CSSProperties} />
-                No account needed
+                Completely free
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckIcon className="w-4 h-4" style={{ color: "#00C37A" } as React.CSSProperties} />
-                10,000+ scans this month
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckIcon className="w-4 h-4" style={{ color: "#00C37A" } as React.CSSProperties} />
-                Free forever plan
+                No account, no credit card
               </span>
             </div>
           </div>
@@ -724,29 +747,6 @@ function HeroSection() {
   );
 }
 
-// ── Social Proof Bar ──────────────────────────────────────────────────────────
-
-function SocialProofBar() {
-  return (
-    <div className="bg-gray-50 border-y border-gray-100">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10">
-        <dl className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
-          {[
-            { value: "10K+",   label: "Products scanned" },
-            { value: "99.2%",  label: "OCR accuracy" },
-            { value: "< 3s",   label: "Per analysis" },
-            { value: "50+",    label: "Risk categories" },
-          ].map(({ value, label }) => (
-            <div key={label}>
-              <dt className="text-3xl font-black text-gray-900 tracking-tight">{value}</dt>
-              <dd className="mt-1 text-sm font-semibold text-gray-400">{label}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </div>
-  );
-}
 
 // ── How It Works ──────────────────────────────────────────────────────────────
 
@@ -757,27 +757,24 @@ function HowItWorksSection() {
       icon: CameraIcon,
       title: "Photograph the label",
       description:
-        "Point your camera at any product — food, cosmetics, supplements, household items. Works with curved, small-print, and 40+ language labels.",
+        "Point your camera at any product: food, cosmetics, supplements, household items. Works with curved labels, small print, and multiple languages.",
       color: "#00C37A",
-      colorBg: "#E6FAF3",
     },
     {
       number: "02",
       icon: ScanIcon,
       title: "AI reads every ingredient",
       description:
-        "Our OCR engine extracts the full ingredient list with 99.2% accuracy, even in low light or on tiny text.",
+        "Our OCR engine extracts the full ingredient list with high accuracy, even in low light or on tiny text.",
       color: "#8BC34A",
-      colorBg: "#F1F8E9",
     },
     {
       number: "03",
       icon: SparklesIcon,
       title: "Get your safety grades",
       description:
-        "Every ingredient is graded A–D in under 3 seconds, with a plain-English explanation and overall product score.",
+        "Every ingredient is graded A to D instantly, with a plain-English explanation and an overall product score.",
       color: "#00C37A",
-      colorBg: "#E6FAF3",
     },
   ];
 
@@ -790,28 +787,32 @@ function HowItWorksSection() {
             <p className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: "#00C37A" }}>
               How It Works
             </p>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-12">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-12">
               From photo to safety grade in seconds
             </h2>
-            <div className="space-y-8">
-              {steps.map(({ number, icon: Icon, title, description, color, colorBg }) => (
-                <div key={number} className="flex gap-5">
+            <div className="space-y-10 relative">
+              <div
+                className="absolute left-3.75 top-3 bottom-3 w-0.5 rounded-full pointer-events-none"
+                style={{ background: "linear-gradient(to bottom, #00C37A 0%, #8BC34A 55%, rgba(229,231,235,0) 100%)" }}
+                aria-hidden="true"
+              />
+              {steps.map(({ number, icon: Icon, title, description, color }) => (
+                <div key={number} className="flex gap-6 relative">
                   <div className="shrink-0">
                     <div
-                      className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl"
-                      style={{ backgroundColor: colorBg }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center relative z-10 shadow-md"
+                      style={{ backgroundColor: color }}
                     >
-                      <Icon className="h-7 w-7" style={{ color } as React.CSSProperties} />
-                      <span
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border-2 flex items-center justify-center text-[9px] font-black"
-                        style={{ borderColor: color, color }}
-                        aria-hidden="true"
-                      >
-                        {number.replace("0", "")}
-                      </span>
+                      <span className="text-xs font-black text-white">{number}</span>
                     </div>
                   </div>
-                  <div>
+                  <div className="pb-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className="h-4 w-4" style={{ color } as React.CSSProperties} />
+                      <p className="text-[10px] font-black uppercase tracking-widest" style={{ color }}>
+                        Step {number.replace("0", "")}
+                      </p>
+                    </div>
                     <h3 className="text-lg font-black text-gray-900 mb-1.5">{title}</h3>
                     <p className="text-gray-500 leading-relaxed font-medium text-sm">{description}</p>
                   </div>
@@ -834,7 +835,7 @@ function HowItWorksSection() {
 
 function GradesSection() {
   return (
-    <section id="grades" className="py-24 sm:py-32" style={{ backgroundColor: "#F9FAFB" }}>
+    <section id="grades" className="py-24 sm:py-32" style={{ backgroundColor: "#E8EAED" }}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Left: explanation */}
@@ -842,13 +843,11 @@ function GradesSection() {
             <p className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: "#00C37A" }}>
               Our Rating System
             </p>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-6">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-6">
               Simple grades. Serious science.
             </h2>
             <p className="text-lg text-gray-500 font-medium leading-relaxed mb-8">
-              Every product gets an overall grade from A to D based on its
-              ingredient profile — cross-referenced against 50+ peer-reviewed
-              risk databases.
+              Every product gets an overall grade from A to D based on its ingredient profile, cross-referenced against established safety and risk databases.
             </p>
             <ul className="space-y-4">
               {(Object.entries(gradeConfig) as [Grade, typeof gradeConfig[Grade]][]).map(
@@ -894,7 +893,7 @@ function GradesSection() {
               return (
                 <div
                   key={product.name}
-                  className="flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200"
+                  className="flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <CircleGrade grade={product.grade} size={56} />
                   <div className="flex-1 min-w-0">
@@ -930,82 +929,50 @@ function GradesSection() {
 // ── Features ──────────────────────────────────────────────────────────────────
 
 function FeaturesSection() {
-  const features = [
+  const pillars = [
     {
       icon: ScanIcon,
-      title: "Precision OCR",
+      title: "Scan any label",
       description:
-        "Reads curved labels, small print, poor lighting, and 40+ languages with 99.2% accuracy.",
-      colorBg: "#E6FAF3",
-      color: "#00C37A",
-    },
-    {
-      icon: SparklesIcon,
-      title: "AI Risk Analysis",
-      description:
-        "Cross-references 50+ risk databases including allergen registries, carcinogen lists, and regulatory ban lists.",
-      colorBg: "#FFF3E0",
-      color: "#FF9800",
-    },
-    {
-      icon: GlobeAltIcon,
-      title: "40+ Languages",
-      description:
-        "Scan imported products in any of 40+ supported languages. Results returned in your preferred language.",
-      colorBg: "#EDE9FE",
-      color: "#7C3AED",
-    },
-    {
-      icon: BeakerIcon,
-      title: "Allergen Detection",
-      description:
-        "Instantly flags 14 major regulated allergens plus 200+ common sensitivities.",
-      colorBg: "#FFEBEE",
-      color: "#F44336",
-    },
-    {
-      icon: DocumentTextIcon,
-      title: "Full Report Export",
-      description:
-        "Download safety reports as PDF or share via link — ideal for healthcare professionals.",
-      colorBg: "#E6FAF3",
-      color: "#00C37A",
+        "Point your camera at any product. Surfelt reads curved labels, small print, and poor lighting in any language.",
+      accent: "#00C37A",
+      bg: "#E6FAF3",
     },
     {
       icon: ShieldCheckIcon,
-      title: "Confidence Scores",
+      title: "Get a safety grade",
       description:
-        "Every flag includes a confidence percentage and plain-English explanation from peer-reviewed sources.",
-      colorBg: "#F1F8E9",
-      color: "#8BC34A",
+        "Every ingredient is cross-referenced against allergen registries, carcinogen lists, and regulatory ban lists to produce an A–D grade.",
+      accent: "#FF9800",
+      bg: "#FFF3E0",
+    },
+    {
+      icon: DocumentTextIcon,
+      title: "Share your results",
+      description:
+        "Download a full safety report as PDF or share via link. Useful for healthcare visits, caregivers, and anyone managing sensitivities.",
+      accent: "#7C3AED",
+      bg: "#F3EFFE",
     },
   ];
 
   return (
-    <section id="features" className="bg-white py-24 sm:py-32">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+    <section id="features" className="py-24 sm:py-32" style={{ backgroundColor: "#F0F2F5" }}>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <p className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: "#00C37A" }}>
-            Features
+            How it helps
           </p>
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
-            Everything you need to stay safe
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+            Three steps, complete picture
           </h2>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {features.map(({ icon: Icon, title, description, colorBg, color }) => (
-            <div
-              key={title}
-              className="rounded-3xl p-7 border border-gray-100 hover:shadow-lg transition-shadow duration-200 cursor-default"
-            >
-              <div
-                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl mb-5"
-                style={{ backgroundColor: colorBg }}
-              >
-                <Icon className="h-6 w-6" style={{ color } as React.CSSProperties} />
-              </div>
-              <h3 className="text-lg font-black text-gray-900 mb-2">{title}</h3>
+        <div className="grid sm:grid-cols-3 gap-10 sm:gap-12">
+          {pillars.map(({ title, description }) => (
+            <div key={title} className="flex flex-col gap-3">
+              <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: "#00C37A" }} />
+              <h3 className="text-lg font-black text-gray-900">{title}</h3>
               <p className="text-gray-500 font-medium leading-relaxed text-sm">{description}</p>
             </div>
           ))}
@@ -1022,7 +989,6 @@ function UseCasesSection() {
     {
       icon: BeakerIcon,
       color: "#00C37A",
-      bg: "#E6FAF3",
       title: "Everyday Consumers",
       description:
         "Quickly check if a product is safe for you and your family before buying. No chemistry degree required.",
@@ -1030,7 +996,6 @@ function UseCasesSection() {
     {
       icon: ShieldCheckIcon,
       color: "#8BC34A",
-      bg: "#F1F8E9",
       title: "Healthcare Professionals",
       description:
         "Advise patients with confidence-scored, evidence-backed ingredient data from peer-reviewed sources.",
@@ -1038,7 +1003,6 @@ function UseCasesSection() {
     {
       icon: DocumentTextIcon,
       color: "#7C3AED",
-      bg: "#EDE9FE",
       title: "Researchers & Regulators",
       description:
         "Audit large product catalogues for compliance violations and emerging risk patterns at scale.",
@@ -1046,31 +1010,23 @@ function UseCasesSection() {
   ];
 
   return (
-    <section className="py-24 sm:py-32" style={{ backgroundColor: "#F9FAFB" }}>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+    <section className="py-24 sm:py-32" style={{ backgroundColor: "#E8EAED" }}>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <p className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: "#00C37A" }}>
             Who It&apos;s For
           </p>
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
             Built for everyone who cares about safety
           </h2>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-6">
-          {useCases.map(({ icon: Icon, color, bg, title, description }) => (
-            <div
-              key={title}
-              className="bg-white rounded-3xl p-8 border border-gray-100 hover:shadow-lg transition-shadow duration-200"
-            >
-              <div
-                className="inline-flex h-14 w-14 items-center justify-center rounded-2xl mb-5"
-                style={{ backgroundColor: bg }}
-              >
-                <Icon className="h-7 w-7" style={{ color } as React.CSSProperties} />
-              </div>
-              <h3 className="text-xl font-black text-gray-900 mb-3">{title}</h3>
-              <p className="text-gray-500 font-medium leading-relaxed">{description}</p>
+        <div className="grid sm:grid-cols-3 gap-10 sm:gap-12">
+          {useCases.map(({ title, description }) => (
+            <div key={title} className="flex flex-col gap-3">
+              <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: "#00C37A" }} />
+              <h3 className="text-lg font-black text-gray-900">{title}</h3>
+              <p className="text-gray-500 font-medium leading-relaxed text-sm">{description}</p>
             </div>
           ))}
         </div>
@@ -1083,14 +1039,14 @@ function UseCasesSection() {
 
 function FoodUniverseSection() {
   const categories = [
-    { Fruit: AppleFruit,      label: "Food & Beverages",    count: "12K+" },
-    { Fruit: StrawberryFruit, label: "Cosmetics & Skincare", count: "8K+"  },
-    { Fruit: LemonFruit,      label: "Supplements",          count: "4K+"  },
-    { Fruit: BroccoliFruit,   label: "Baby & Pet Products",  count: "2K+"  },
+    { Fruit: AppleFruit,      label: "Food & Beverages" },
+    { Fruit: StrawberryFruit, label: "Cosmetics & Skincare" },
+    { Fruit: LemonFruit,      label: "Supplements" },
+    { Fruit: BroccoliFruit,   label: "Baby & Pet Products" },
   ];
 
   return (
-    <section className="bg-white py-24 sm:py-32 overflow-hidden">
+    <section className="py-24 sm:py-32 overflow-hidden" style={{ backgroundColor: "#F0F2F5" }}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
@@ -1098,30 +1054,29 @@ function FoodUniverseSection() {
           <p className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: "#00C37A" }}>
             Scan Anything
           </p>
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
             Every ingredient. Every product.
           </h2>
           <p className="mt-4 text-lg text-gray-500 font-medium max-w-xl mx-auto">
-            Point your camera at any product — our AI instantly reads every ingredient
-            and grades each one A–D in under 3 seconds.
+            Point your camera at any product. Our AI reads every ingredient
+            and grades each one A to D.
           </p>
         </div>
 
         {/* Category cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {categories.map(({ Fruit, label, count }) => (
+          {categories.map(({ Fruit, label }) => (
             <div
               key={label}
-              className="flex flex-col items-center p-6 rounded-3xl border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center cursor-default"
+              className="flex flex-col items-center p-6 rounded-3xl bg-white border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center cursor-default"
             >
               <div
                 className="mb-4"
                 style={{ filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.10))" }}
               >
-                <Fruit className="w-14 h-14" />
+                <Fruit className="w-16 h-16" />
               </div>
-              <p className="text-xl font-black text-gray-900">{count}</p>
-              <p className="text-sm font-semibold text-gray-400 mt-1 leading-snug">{label}</p>
+              <p className="text-sm font-bold text-gray-700 leading-snug">{label}</p>
             </div>
           ))}
         </div>
@@ -1134,14 +1089,19 @@ function FoodUniverseSection() {
 
 function CtaSection() {
   return (
-    <section className="py-24 sm:py-32" style={{ backgroundColor: "#00C37A" }}>
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-        <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-6 leading-[1.1]">
+    <section className="relative overflow-hidden py-24 sm:py-32" style={{ backgroundColor: "#00C37A" }}>
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden" aria-hidden="true">
+        <span className="font-display font-black leading-none text-white/6" style={{ fontSize: "20vw", whiteSpace: "nowrap" }}>
+          Surfelt
+        </span>
+      </div>
+      <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+        <h2 className="font-display text-3xl sm:text-5xl font-bold text-white tracking-tight mb-6 leading-[1.1]">
           Start scanning in minutes.
         </h2>
         <p className="text-xl text-white/80 font-medium mb-10 max-w-xl mx-auto leading-relaxed">
           No credit card. No setup. Upload your first product label and get a full
-          safety grade report in under 3 seconds.
+          safety grade report instantly.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -1150,20 +1110,10 @@ function CtaSection() {
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-black cursor-pointer transition-all duration-150 hover:bg-gray-50 active:scale-95"
             style={{ color: "#00C37A" }}
           >
-            Try SafeScan Free
-            <ArrowRightIcon className="w-4 h-4" />
-          </a>
-          <a
-            href="#"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-white/40 px-8 py-4 text-base font-bold text-white cursor-pointer transition-all duration-150 hover:bg-white/10 active:scale-95"
-          >
-            View Documentation
+            Try Surfelt Free
           </a>
         </div>
 
-        <p className="mt-8 text-sm text-white/60 font-semibold">
-          Free tier · 10 scans/month · No account required for first scan
-        </p>
       </div>
     </section>
   );
@@ -1179,19 +1129,13 @@ const footerLinks: Record<string, string[]> = {
 
 function Footer() {
   return (
-    <footer className="bg-gray-50 border-t border-gray-100">
+    <footer className="border-t border-gray-200" style={{ backgroundColor: "#E8EAED" }}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-xl"
-                style={{ backgroundColor: "#00C37A" }}
-              >
-                <ShieldCheckIcon className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-lg font-extrabold text-gray-900 tracking-tight">
-                Safe<span style={{ color: "#00C37A" }}>Scan</span>
+            <div className="mb-4">
+              <span className="font-display text-2xl font-bold tracking-tight text-gray-900">
+                Surf<span style={{ color: "#00C37A" }}>elt</span>
               </span>
             </div>
             <p className="text-sm text-gray-400 font-medium leading-relaxed max-w-xs">
@@ -1222,7 +1166,7 @@ function Footer() {
 
         <div className="mt-12 pt-8 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-gray-400 font-semibold">
-            © {new Date().getFullYear()} SafeScan. All rights reserved.
+            © {new Date().getFullYear()} Surfelt. All rights reserved.
           </p>
           <p className="text-xs text-gray-400 font-semibold">
             Built with OCR + AI for product safety
@@ -1242,7 +1186,6 @@ export default function Home() {
       <Navbar />
       <main>
         <HeroSection />
-        <SocialProofBar />
         <HowItWorksSection />
         <GradesSection />
         <FeaturesSection />

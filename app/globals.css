@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #F0F2F5;
   --foreground: #111827;
 
   /* Brand */
@@ -33,6 +33,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-nunito);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-playfair);
 }
 
 body {
@@ -206,6 +207,10 @@ body {
 .orbit-ring-outer { animation: orbit-ring-outer-anim   7s linear      infinite; }
 .orbit-ring-inner { animation: orbit-ring-inner-anim  11s linear      infinite; }
 .scan-sweep       { animation: scan-sweep               6s ease-in-out infinite 1.5s; }
+
+@media (max-width: 640px) {
+  .card-rock-3d { animation: none; transform: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
