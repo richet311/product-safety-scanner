@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Nunito } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -15,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SafeScan — AI-Powered Product Safety Scanner",
+  title: "SafeScan — Know What's In Your Products",
   description:
-    "Extract ingredients from product labels with OCR, get AI-powered risk analysis, and receive confidence-scored safety explanations in seconds.",
+    "Scan any product label, get instant AI-powered ingredient analysis with A–D safety grades in under 3 seconds.",
 };
 
 export default function RootLayout({
@@ -28,9 +29,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${nunito.variable} ${geistMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col antialiased">{children}</body>
     </html>
   );
 }
