@@ -1,22 +1,10 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 const DAILY_LIMIT = Number(process.env.DAILY_SCAN_LIMIT ?? 20)
-
-function stripMd(raw: string): string {
-  return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
-}
-
-function extractJSON(raw: string): string {
-  const stripped = stripMd(raw)
-  try { JSON.parse(stripped); return stripped } catch {}
-  // Gemini sometimes wraps JSON in prose — grab the first {...} block
-  const match = stripped.match(/\{[\s\S]*\}/)
-  return match ? match[0] : stripped
-}
 
 type IngredientAnalysis = {
   name: string
@@ -34,16 +22,10 @@ type ScanAnalysis = {
 export async function POST(request: Request) {
   const supabase = await createClient()
 
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Rate limit — query immutable scan_events (users have INSERT only, no DELETE)
+  // Rate limit — gracefully skip if tables not set up yet
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -54,7 +36,6 @@ export async function POST(request: Request) {
     .gte('created_at', today.toISOString())
 
   if (countError) {
-    // Tables may not be set up yet — skip rate limiting rather than blocking
     console.error('[scan] rate-limit query failed (tables may not exist yet):', countError.message)
   } else if ((count ?? 0) >= DAILY_LIMIT) {
     return NextResponse.json(
@@ -76,37 +57,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  if (!ingredients) {
-    return NextResponse.json({ error: 'ingredients is required' }, { status: 400 })
-  }
+  if (!ingredients) return NextResponse.json({ error: 'ingredients is required' }, { status: 400 })
+  if (ingredients.length > 4000) return NextResponse.json({ error: 'Ingredients text too long (max 4000 chars)' }, { status: 400 })
 
-  if (ingredients.length > 4000) {
-    return NextResponse.json({ error: 'Ingredients text too long (max 4000 chars)' }, { status: 400 })
-  }
-
-  // AI analysis
+  // AI analysis via Groq — Llama 3.3 70B, free tier (14,400 req/day)
   let analysis: ScanAnalysis
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: { responseMimeType: 'application/json' },
-    })
-
-    const result = await model.generateContent(`Analyze these product ingredients for safety. Return ONLY valid JSON, no markdown, no extra text.
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'user',
+          content: `Analyze these product ingredients for safety. Return ONLY valid JSON.
 
 Schema:
-{
-  "overall_grade": "A" | "B" | "C" | "D",
-  "summary": "1-2 sentence safety assessment",
-  "ingredients": [
-    {
-      "name": "ingredient name",
-      "grade": "A" | "B" | "C" | "D",
-      "concern": "brief concern string or null",
-      "safe": true | false
-    }
-  ]
-}
+{"overall_grade":"A"|"B"|"C"|"D","summary":"1-2 sentence safety assessment","ingredients":[{"name":"ingredient name","grade":"A"|"B"|"C"|"D","concern":"brief concern or null","safe":true|false}]}
 
 Grading scale:
 A = very safe, well-studied, no concerns
@@ -115,24 +80,27 @@ C = use with caution, some studies show concerns
 D = potentially harmful, avoid if possible
 
 Ingredients list:
-${ingredients}`)
+${ingredients}`,
+        },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.1,
+      max_tokens: 4096,
+    })
 
-    analysis = JSON.parse(extractJSON(result.response.text())) as ScanAnalysis
+    const content = completion.choices[0]?.message?.content
+    if (!content) throw new Error('Empty response from Groq')
+    analysis = JSON.parse(content) as ScanAnalysis
   } catch (err) {
     console.error('[scan] AI analysis failed:', err)
     return NextResponse.json({ error: 'Analysis failed. Please try again.' }, { status: 502 })
   }
 
-  // Persist scan event (immutable log for rate limiting — no user DELETE policy)
-  const { error: eventError } = await supabase
-    .from('scan_events')
-    .insert({ user_id: user.id })
+  // Persist scan event (immutable — no user DELETE policy, keeps rate-limit tamper-proof)
+  const { error: eventError } = await supabase.from('scan_events').insert({ user_id: user.id })
+  if (eventError) console.error('[scan] scan_events insert failed:', eventError.message)
 
-  if (eventError) {
-    console.error('[scan] scan_events insert failed:', eventError.message)
-  }
-
-  // Persist scan result (user can delete their own history)
+  // Persist scan result
   const { data: scanData, error: scanError } = await supabase
     .from('scans')
     .insert({
@@ -146,9 +114,7 @@ ${ingredients}`)
     .select('id')
     .single()
 
-  if (scanError) {
-    console.error('[scan] scans insert failed:', scanError.message)
-  }
+  if (scanError) console.error('[scan] scans insert failed:', scanError.message)
 
   return NextResponse.json({
     id: scanData?.id,

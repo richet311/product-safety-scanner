@@ -88,16 +88,44 @@ export default function ScannerPage() {
     setCameraUnsupported(false)
   }
 
-  async function extract(file: File, mode: 'barcode' | 'ocr') {
-    setExtractState({ status: 'loading', message: mode === 'barcode' ? 'Reading barcode…' : 'Extracting ingredients…' })
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('mode', mode)
+  async function runOcrAndSearch(file: File) {
+    storeImageFile(file)
+    setExtractState({ status: 'loading', message: 'Loading text recognition…' })
     try {
-      const res = await fetch('/api/extract', { method: 'POST', body: fd })
+      const Tesseract = (await import('tesseract.js')).default
+      const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+        logger: (m: { status: string; progress: number }) => {
+          if (m.status === 'recognizing text') {
+            setExtractState({ status: 'loading', message: `Reading text… ${Math.round(m.progress * 100)}%` })
+          }
+        },
+      })
+
+      // Pull the first few meaningful lines — product name is usually at the top
+      const query = text
+        .split('\n')
+        .map((l: string) => l.trim())
+        .filter((l: string) => l.length > 2 && !/^\d+[\d\s.,/%gG]*$/.test(l))
+        .slice(0, 4)
+        .join(' ')
+        .trim()
+
+      if (!query) {
+        setExtractState({ status: 'error', message: 'Could not read text from the photo. Try better lighting or a closer shot.' })
+        return
+      }
+
+      setExtractState({ status: 'loading', message: 'Searching product database…' })
+
+      const res = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_name: query }),
+      })
       const json = await res.json()
+
       if (!res.ok) {
-        setExtractState({ status: 'error', message: json.error ?? 'Could not extract. Try again or paste manually.' })
+        setExtractState({ status: 'error', message: json.error ?? 'Product not found. Try scanning the barcode.' })
         return
       }
       if (json.product_name) setProductName(json.product_name)
@@ -107,12 +135,9 @@ export default function ScannerPage() {
         setImagePreview(json.product_image_url)
         setImageFile(null)
       }
-      const label = mode === 'barcode'
-        ? json.product_name ? `Found: ${json.product_name}` : 'Product found — review below'
-        : 'Ingredients extracted — review below'
-      setExtractState({ status: 'success', message: label })
+      setExtractState({ status: 'success', message: json.product_name ? `Found: ${json.product_name}` : 'Product found — review below' })
     } catch {
-      setExtractState({ status: 'error', message: 'Network error. Please try again.' })
+      setExtractState({ status: 'error', message: 'Could not process the photo. Please try again.' })
     }
   }
 
@@ -186,23 +211,47 @@ export default function ScannerPage() {
         message: 'Barcode not found in that photo. Try better lighting, hold the camera steady, or type the barcode number manually.',
       })
     } else if (mode === 'label') {
-      storeImageFile(file)
-      extract(file, 'ocr')
+      runOcrAndSearch(file)
     }
   }
 
-  function handleBarcodeFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleBarcodeFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) extract(file, 'barcode')
+    if (!file) return
     e.target.value = ''
+    setExtractState({ status: 'loading', message: 'Reading barcode…' })
+
+    if ('BarcodeDetector' in window) {
+      try {
+        const bitmap = await createImageBitmap(file)
+        const detector = new (window as any).BarcodeDetector({
+          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code', 'itf', 'data_matrix'],
+        })
+        const codes = await detector.detect(bitmap)
+        if (codes.length > 0) { handleBarcodeDetected(codes[0].rawValue); return }
+      } catch {}
+    }
+
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser')
+      const reader = new BrowserMultiFormatReader()
+      const url = URL.createObjectURL(file)
+      try {
+        const result = await reader.decodeFromImageUrl(url)
+        if (result) { handleBarcodeDetected(result.getText()); return }
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    } catch {}
+
+    setExtractState({ status: 'error', message: 'Barcode not found in that image. Try a clearer photo or enter the barcode manually.' })
   }
 
   function handleLabelFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    storeImageFile(file)
-    extract(file, 'ocr')
     e.target.value = ''
+    runOcrAndSearch(file)
   }
 
   function removeImage() {
@@ -529,7 +578,7 @@ export default function ScannerPage() {
             New Scan
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13.5px', margin: 0, lineHeight: 1.5 }}>
-            Scan a barcode or photograph the product.
+            Scan a barcode or take a photo of the product packaging.
           </p>
         </div>
 
@@ -609,7 +658,7 @@ export default function ScannerPage() {
             <div className="scan-card">
               <p className="scan-card-title">Product Photo</p>
               <p className="scan-card-desc">
-                Photograph any side of the product — Surfelt reads the ingredients automatically.
+                Take a photo of the product (box, bottle, bag) — Surfelt recognizes it and finds the ingredients automatically.
               </p>
               <input ref={labelUploadRef} type="file" accept="image/*" onChange={handleLabelFile} style={{ display: 'none' }} />
 
