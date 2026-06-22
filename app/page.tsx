@@ -1,3 +1,6 @@
+import { createClient } from '@/lib/supabase/server'
+import { NavAuthDesktop, NavAuthMobile } from './components/NavAuth'
+
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 type IconProps = { className?: string; style?: React.CSSProperties };
@@ -599,7 +602,19 @@ function AppMockup() {
 
 // ── Navbar ────────────────────────────────────────────────────────────────────
 
-function Navbar() {
+async function Navbar() {
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    // Supabase not configured yet — degrade gracefully
+  }
+
+  const avatarUrl = (user?.user_metadata as { avatar_url?: string } | undefined)?.avatar_url;
+  const email = user?.email;
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-100/80 backdrop-blur-md" style={{ backgroundColor: "rgba(255,255,255,0.88)", boxShadow: "0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" }}>
       {/* Hidden checkbox powers the CSS-only mobile menu */}
@@ -630,6 +645,29 @@ function Navbar() {
               </a>
             ))}
           </nav>
+
+          {/* Auth — desktop */}
+          <div className="hidden md:flex items-center gap-3">
+            {user ? (
+              <NavAuthDesktop avatarUrl={avatarUrl} email={email} />
+            ) : (
+              <>
+                <a
+                  href="/login"
+                  className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors duration-150"
+                >
+                  Sign In
+                </a>
+                <a
+                  href="/login?mode=signup"
+                  className="text-sm font-semibold px-4 py-2 rounded-xl text-white transition-all duration-150 hover:opacity-90"
+                  style={{ backgroundColor: "#00C37A" }}
+                >
+                  Sign Up
+                </a>
+              </>
+            )}
+          </div>
 
           {/* Hamburger — mobile only */}
           <label
@@ -663,6 +701,18 @@ function Navbar() {
               {label}
             </a>
           ))}
+          {user ? (
+            <NavAuthMobile avatarUrl={avatarUrl} email={email} />
+          ) : (
+            <>
+              <a href="/login" className="block py-3 text-base font-semibold text-gray-700 hover:text-gray-900 border-b border-gray-100">
+                Sign In
+              </a>
+              <a href="/login?mode=signup" className="block py-3 text-base font-semibold hover:opacity-90" style={{ color: "#00C37A" }}>
+                Sign Up
+              </a>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -709,7 +759,7 @@ function HeroSection() {
 
             <div className="anim-fade-up anim-fade-up-4 flex flex-col sm:flex-row gap-3 mb-8">
               <a
-                href="#"
+                href="/login?mode=signup"
                 className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-95"
                 style={{ backgroundColor: "#00C37A", boxShadow: "0 8px 24px rgba(0,195,122,0.35), 0 2px 8px rgba(0,195,122,0.15)" }}
               >
@@ -724,17 +774,6 @@ function HeroSection() {
               </a>
             </div>
 
-            {/* Trust signals */}
-            <div className="anim-fade-up anim-fade-up-4 flex flex-wrap items-center gap-5 text-sm text-gray-400 font-semibold">
-              <span className="flex items-center gap-1.5">
-                <CheckIcon className="w-4 h-4" style={{ color: "#00C37A" } as React.CSSProperties} />
-                Completely free
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckIcon className="w-4 h-4" style={{ color: "#00C37A" } as React.CSSProperties} />
-                No account, no credit card
-              </span>
-            </div>
           </div>
 
           {/* App mockup */}
@@ -1106,7 +1145,7 @@ function CtaSection() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a
-            href="#"
+            href="/login?mode=signup"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-black cursor-pointer transition-all duration-150 hover:bg-gray-50 active:scale-95"
             style={{ color: "#00C37A" }}
           >

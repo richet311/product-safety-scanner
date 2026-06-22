@@ -42,6 +42,15 @@ body {
   font-family: var(--font-nunito), system-ui, sans-serif;
 }
 
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled):active {
+  opacity: 0.78;
+  transition: opacity 0.08s, transform 0.08s;
+}
+
 /* ── Animations ──────────────────────────────────────────── */
 
 @keyframes fade-up {
