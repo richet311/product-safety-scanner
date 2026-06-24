@@ -599,7 +599,7 @@ export default function ScannerPage() {
               <div className="scan-card">
                 <p className="scan-card-title">Product Photo</p>
                 <p className="scan-card-desc">
-                  Take a photo of the ingredient label. Works for food, medication, supplements, and more.
+                  Take a photo of the ingredient or label name. Works for food, medication, supplements, and more.
                 </p>
                 <input ref={labelUploadRef} type="file" accept="image/*" onChange={handleLabelFile} style={{ display: 'none' }} />
 
