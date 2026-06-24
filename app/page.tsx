@@ -114,24 +114,6 @@ function FruitGradientDefs() {
           <stop offset="50%" stopColor="#FF6D00" />
           <stop offset="100%" stopColor="#BF360C" />
         </radialGradient>
-        <radialGradient id="fg-broc-main" cx="35%" cy="25%" r="65%">
-          <stop offset="0%" stopColor="#A5D6A7" />
-          <stop offset="100%" stopColor="#1B5E20" />
-        </radialGradient>
-        <radialGradient id="fg-broc-side" cx="35%" cy="25%" r="65%">
-          <stop offset="0%" stopColor="#C8E6C9" />
-          <stop offset="100%" stopColor="#2E7D32" />
-        </radialGradient>
-        <radialGradient id="fg-straw" cx="35%" cy="25%" r="65%">
-          <stop offset="0%" stopColor="#FF8A80" />
-          <stop offset="60%" stopColor="#D32F2F" />
-          <stop offset="100%" stopColor="#7F0000" />
-        </radialGradient>
-        <radialGradient id="fg-lemon" cx="35%" cy="30%" r="65%">
-          <stop offset="0%" stopColor="#FFF9C4" />
-          <stop offset="40%" stopColor="#FFEE58" />
-          <stop offset="100%" stopColor="#F57F17" />
-        </radialGradient>
         <radialGradient id="fg-avoc-outer" cx="35%" cy="25%" r="65%">
           <stop offset="0%" stopColor="#8BC34A" />
           <stop offset="60%" stopColor="#33691E" />
@@ -145,6 +127,29 @@ function FruitGradientDefs() {
           <stop offset="0%" stopColor="#A1887F" />
           <stop offset="100%" stopColor="#4E342E" />
         </radialGradient>
+        <linearGradient id="fg-cosmetic-bottle" x1="18" y1="12" x2="48" y2="58" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFF5F7" />
+          <stop offset="48%" stopColor="#F8BBD0" />
+          <stop offset="100%" stopColor="#AD1457" />
+        </linearGradient>
+        <linearGradient id="fg-cosmetic-cap" x1="22" y1="4" x2="42" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#B2EBF2" />
+          <stop offset="100%" stopColor="#00838F" />
+        </linearGradient>
+        <linearGradient id="fg-supplement-jar" x1="14" y1="10" x2="50" y2="58" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#E3F2FD" />
+          <stop offset="48%" stopColor="#64B5F6" />
+          <stop offset="100%" stopColor="#0D47A1" />
+        </linearGradient>
+        <linearGradient id="fg-supplement-pill" x1="13" y1="14" x2="50" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFF9C4" />
+          <stop offset="100%" stopColor="#F57F17" />
+        </linearGradient>
+        <linearGradient id="fg-baby-bottle" x1="19" y1="8" x2="45" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#F1F8E9" />
+          <stop offset="48%" stopColor="#A5D6A7" />
+          <stop offset="100%" stopColor="#2E7D32" />
+        </linearGradient>
       </defs>
     </svg>
   );
@@ -179,61 +184,6 @@ function CarrotFruit({ className, style }: IconProps) {
   );
 }
 
-function BroccoliFruit({ className, style }: IconProps) {
-  return (
-    <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <rect x="27" y="46" width="10" height="18" rx="4" fill="#558B2F" />
-      <circle cx="32" cy="36" r="18" fill="url(#fg-broc-main)" />
-      <circle cx="18" cy="42" r="12" fill="url(#fg-broc-side)" />
-      <circle cx="46" cy="42" r="12" fill="url(#fg-broc-side)" />
-      <circle cx="32" cy="22" r="13" fill="url(#fg-broc-side)" />
-      <circle cx="24" cy="26" r="7" fill="#81C784" />
-      <circle cx="40" cy="26" r="7" fill="#81C784" />
-      <circle cx="32" cy="18" r="8" fill="#A5D6A7" />
-      <circle cx="20" cy="36" r="6" fill="#81C784" />
-      <circle cx="44" cy="36" r="6" fill="#81C784" />
-      <circle cx="26" cy="22" r="3" fill="white" fillOpacity="0.3" />
-      <circle cx="40" cy="16" r="2.5" fill="white" fillOpacity="0.25" />
-    </svg>
-  );
-}
-
-function StrawberryFruit({ className, style }: IconProps) {
-  return (
-    <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M32 22 Q20 12 22 4 Q29 16 32 22" fill="url(#fg-leaf)" />
-      <path d="M32 22 Q44 12 42 4 Q35 16 32 22" fill="#43A047" />
-      <path d="M32 22 Q14 20 12 10 Q24 18 32 22" fill="#2E7D32" />
-      <path d="M32 22 Q50 20 52 10 Q40 18 32 22" fill="#388E3C" />
-      <path d="M16 28 Q14 20 22 18 Q32 16 42 18 Q50 20 48 28 L44 50 Q38 64 32 62 Q26 64 20 50 Z" fill="url(#fg-straw)" />
-      <ellipse cx="26" cy="34" rx="1.5" ry="2" fill="#FFD54F" fillOpacity="0.9" />
-      <ellipse cx="34" cy="28" rx="1.5" ry="2" fill="#FFD54F" fillOpacity="0.9" />
-      <ellipse cx="40" cy="36" rx="1.5" ry="2" fill="#FFD54F" fillOpacity="0.9" />
-      <ellipse cx="28" cy="46" rx="1.5" ry="2" fill="#FFD54F" fillOpacity="0.9" />
-      <ellipse cx="38" cy="50" rx="1.5" ry="2" fill="#FFD54F" fillOpacity="0.9" />
-      <ellipse cx="24" cy="50" rx="1.5" ry="2" fill="#FFD54F" fillOpacity="0.9" />
-      <ellipse cx="36" cy="42" rx="1.5" ry="2" fill="#FFD54F" fillOpacity="0.9" />
-      <ellipse cx="23" cy="30" rx="5" ry="7" fill="white" fillOpacity="0.22" transform="rotate(-15 23 30)" />
-      <circle cx="21" cy="26" r="2.5" fill="white" fillOpacity="0.35" />
-    </svg>
-  );
-}
-
-function LemonFruit({ className, style }: IconProps) {
-  return (
-    <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M6 32 Q8 16 32 12 Q56 16 58 32 Q56 48 32 52 Q8 48 6 32Z" fill="url(#fg-lemon)" />
-      <path d="M6 32 Q3 27 2 32 Q3 37 6 32" fill="#F9A825" />
-      <path d="M58 32 Q61 27 62 32 Q61 37 58 32" fill="#F9A825" />
-      <ellipse cx="24" cy="24" rx="10" ry="7" fill="white" fillOpacity="0.3" transform="rotate(-15 24 24)" />
-      <circle cx="22" cy="22" r="4" fill="white" fillOpacity="0.35" />
-      <circle cx="44" cy="38" r="1.5" fill="#F9A825" fillOpacity="0.4" />
-      <circle cx="48" cy="28" r="1" fill="#F9A825" fillOpacity="0.35" />
-      <circle cx="38" cy="43" r="1.5" fill="#F9A825" fillOpacity="0.4" />
-    </svg>
-  );
-}
-
 function AvocadoFruit({ className, style }: IconProps) {
   return (
     <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
@@ -249,6 +199,60 @@ function AvocadoFruit({ className, style }: IconProps) {
 }
 
 // ── Grade System ──────────────────────────────────────────────────────────────
+
+function CosmeticBottleProduct({ className, style }: IconProps) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <rect x="27" y="6" width="18" height="5" rx="2.5" fill="#006064" />
+      <path d="M32 8 H43 Q50 8 50 14 V17 H45 V15 Q45 13 43 13 H32 Z" fill="url(#fg-cosmetic-cap)" />
+      <rect x="25" y="14" width="14" height="8" rx="3" fill="url(#fg-cosmetic-cap)" />
+      <path d="M18 30 Q18 22 26 22 H38 Q46 22 46 30 V52 Q46 60 38 60 H26 Q18 60 18 52 Z" fill="url(#fg-cosmetic-bottle)" />
+      <path d="M23 34 Q23 30 27 30 H37 Q41 30 41 34 V49 Q41 53 37 53 H27 Q23 53 23 49 Z" fill="white" fillOpacity="0.78" />
+      <path d="M27 40 H37" stroke="#AD1457" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M29 46 H35" stroke="#00838F" strokeWidth="2" strokeLinecap="round" />
+      <ellipse cx="25" cy="32" rx="4" ry="10" fill="white" fillOpacity="0.25" transform="rotate(-10 25 32)" />
+      <circle cx="25" cy="28" r="2.5" fill="white" fillOpacity="0.36" />
+    </svg>
+  );
+}
+
+function SupplementBottleProduct({ className, style }: IconProps) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <rect x="22" y="7" width="20" height="11" rx="3" fill="#263238" />
+      <path d="M20 20 Q20 16 24 16 H40 Q44 16 44 20 V52 Q44 60 36 60 H28 Q20 60 20 52 Z" fill="url(#fg-supplement-jar)" />
+      <rect x="23" y="30" width="18" height="16" rx="4" fill="white" fillOpacity="0.86" />
+      <path d="M27 37 H37" stroke="#0D47A1" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M30 42 H34" stroke="#F57F17" strokeWidth="2" strokeLinecap="round" />
+      <rect x="11" y="42" width="18" height="9" rx="4.5" fill="url(#fg-supplement-pill)" transform="rotate(-24 20 46.5)" />
+      <path d="M20 40 L24 49" stroke="white" strokeWidth="1.4" strokeOpacity="0.6" />
+      <rect x="39" y="43" width="15" height="8" rx="4" fill="#E91E63" transform="rotate(22 46.5 47)" />
+      <path d="M47 43 L44 51" stroke="white" strokeWidth="1.3" strokeOpacity="0.58" />
+      <ellipse cx="27" cy="28" rx="4" ry="9" fill="white" fillOpacity="0.23" transform="rotate(-12 27 28)" />
+      <circle cx="26" cy="25" r="2.5" fill="white" fillOpacity="0.34" />
+    </svg>
+  );
+}
+
+function BabyPetProduct({ className, style }: IconProps) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <path d="M28 8 Q28 3 32 3 Q36 3 36 8 V12 H28 Z" fill="#F8BBD0" />
+      <rect x="24" y="11" width="16" height="8" rx="3" fill="#EC407A" />
+      <path d="M21 26 Q21 18 29 18 H35 Q43 18 43 26 V52 Q43 61 34 61 H30 Q21 61 21 52 Z" fill="url(#fg-baby-bottle)" />
+      <path d="M25 34 H39" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.68" />
+      <path d="M26 42 H38" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.68" />
+      <path d="M27 50 H37" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.68" />
+      <ellipse cx="28" cy="29" rx="4" ry="9" fill="white" fillOpacity="0.24" transform="rotate(-12 28 29)" />
+      <circle cx="49" cy="42" r="5" fill="#5D4037" />
+      <circle cx="42" cy="38" r="2.8" fill="#5D4037" />
+      <circle cx="48" cy="34" r="2.8" fill="#5D4037" />
+      <circle cx="55" cy="38" r="2.8" fill="#5D4037" />
+      <circle cx="46" cy="48" r="2.5" fill="#5D4037" />
+      <path d="M44 44 Q49 51 55 44" stroke="#8D6E63" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
 
 type Grade = "A" | "B" | "C" | "D";
 
@@ -1078,10 +1082,10 @@ function UseCasesSection() {
 
 function FoodUniverseSection() {
   const categories = [
-    { Fruit: AppleFruit,      label: "Food & Beverages" },
-    { Fruit: StrawberryFruit, label: "Cosmetics & Skincare" },
-    { Fruit: LemonFruit,      label: "Supplements" },
-    { Fruit: BroccoliFruit,   label: "Baby & Pet Products" },
+    { Fruit: AppleFruit,               label: "Food & Beverages" },
+    { Fruit: CosmeticBottleProduct,    label: "Cosmetics & Skincare" },
+    { Fruit: SupplementBottleProduct,  label: "Supplements" },
+    { Fruit: BabyPetProduct,           label: "Baby & Pet Products" },
   ];
 
   return (
