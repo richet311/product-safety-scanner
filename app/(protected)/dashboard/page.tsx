@@ -91,9 +91,14 @@ export default async function DashboardPage() {
     d.setDate(d.getDate() - (6 - i))
     d.setHours(0, 0, 0, 0)
     const next = new Date(d.getTime() + 86400000)
+    const dayScans = scans.filter(s => { const t = new Date(s.created_at); return t >= d && t < next })
+    const dayScore = dayScans.length > 0
+      ? Math.round(dayScans.reduce((sum, s) => sum + (s.overall_grade === 'A' ? 100 : s.overall_grade === 'B' ? 75 : s.overall_grade === 'C' ? 40 : 10), 0) / dayScans.length)
+      : null
     return {
-      label: i === 6 ? 'T' : ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d.getDay()],
-      count: scans.filter(s => { const t = new Date(s.created_at); return t >= d && t < next }).length,
+      label: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d.getDay()],
+      count: dayScans.length,
+      score: dayScore,
       isToday: i === 6,
     }
   })
@@ -154,17 +159,30 @@ export default async function DashboardPage() {
         .scan-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 14px;
+          gap: 10px;
         }
-        @media (max-width: 400px) {
-          .scan-grid { grid-template-columns: 1fr; }
+        @media (min-width: 640px) {
+          .scan-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
         }
-        @media (min-width: 820px) {
-          .scan-grid { grid-template-columns: repeat(3, 1fr); }
+
+        .scan-card-img { height: 100px; }
+        @media (min-width: 400px) { .scan-card-img { height: 115px; } }
+        @media (min-width: 640px) { .scan-card-img { height: 160px; } }
+
+        .scan-card-body { padding: 8px 10px 10px; }
+        @media (min-width: 640px) { .scan-card-body { padding: 14px 16px 16px; } }
+
+        .scan-card-name {
+          margin: 0 0 5px;
+          font-weight: 700;
+          font-size: 12px;
+          color: #0f172a;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          padding-right: 24px;
         }
-        @media (min-width: 1060px) {
-          .scan-grid { grid-template-columns: repeat(2, 1fr); }
-        }
+        @media (min-width: 640px) { .scan-card-name { font-size: 14px; } }
 
         .stats-grid {
           display: grid;
@@ -457,11 +475,11 @@ export default async function DashboardPage() {
                       <div style={{
                         width: '100%',
                         height: day.count === 0 ? '3px' : `${Math.round((day.count / maxDaily) * 52) + 4}px`,
-                        background: day.isToday
-                          ? '#00C37A'
-                          : day.count > 0
-                          ? 'rgba(0,195,122,0.35)'
-                          : '#f1f5f9',
+                        background: day.count === 0 ? '#f1f5f9'
+                          : day.score! >= 80 ? '#00C37A'
+                          : day.score! >= 60 ? '#EAB308'
+                          : day.score! >= 35 ? '#F97316'
+                          : '#EF4444',
                         borderRadius: '3px 3px 0 0',
                         transition: 'height 0.4s',
                       }} />

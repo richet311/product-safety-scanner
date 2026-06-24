@@ -541,7 +541,7 @@ export default function ScannerPage() {
               <div className="scan-card">
                 <p className="scan-card-title">Scan Barcode</p>
                 <p className="scan-card-desc">
-                  Point your camera at a product barcode. Works on most packaged foods and cosmetics.
+                  Point your camera at a product barcode. Works on most packaged foods and other items.
                 </p>
                 {!cameraUnsupported && extractState.status !== 'success' && (
                   <div style={{ marginBottom: '14px' }}>
