@@ -253,26 +253,19 @@ export function ScanCard({ scan }: { scan: Scan }) {
           title="Delete scan"
           style={{
             position: 'absolute', bottom: 14, right: 14,
-            width: 28, height: 28, borderRadius: '8px',
-            border: '1px solid #f1f5f9',
-            background: '#fff',
+            width: 28, height: 28,
+            border: 'none', background: 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', color: '#cbd5e1',
-            transition: 'color 0.15s, border-color 0.15s, background 0.15s',
+            transition: 'color 0.15s',
             padding: 0,
             zIndex: 1,
           }}
           onMouseEnter={e => {
-            const el = e.currentTarget as HTMLButtonElement
-            el.style.color = '#ef4444'
-            el.style.borderColor = 'rgba(239,68,68,0.25)'
-            el.style.background = 'rgba(239,68,68,0.06)'
+            (e.currentTarget as HTMLButtonElement).style.color = '#ef4444'
           }}
           onMouseLeave={e => {
-            const el = e.currentTarget as HTMLButtonElement
-            el.style.color = '#cbd5e1'
-            el.style.borderColor = '#f1f5f9'
-            el.style.background = '#fff'
+            (e.currentTarget as HTMLButtonElement).style.color = '#cbd5e1'
           }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
