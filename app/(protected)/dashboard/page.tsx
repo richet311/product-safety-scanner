@@ -62,7 +62,7 @@ export default async function DashboardPage() {
   const dailyLimit = (profileResult.data as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? DEFAULT_DAILY_LIMIT
   const remaining = dailyLimit - todayCount
   const atLimit = todayCount >= dailyLimit
-  const usagePct = Math.min((todayCount / dailyLimit) * 100, 100)
+  const usagePct = Math.min((remaining / dailyLimit) * 100, 100)
 
   const gradeScore = { A: 4, B: 3, C: 2, D: 1 } as const
   const gradeLetters = ['A', 'B', 'C', 'D'] as const
