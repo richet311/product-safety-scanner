@@ -656,7 +656,7 @@ async function Navbar() {
                   href="/login"
                   className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors duration-150"
                 >
-                  Sign In
+                  Sign Up
                 </a>
                 <a
                   href="/login"
@@ -706,7 +706,7 @@ async function Navbar() {
           ) : (
             <>
               <a href="/login" className="block py-3 text-base font-semibold text-gray-700 hover:text-gray-900 border-b border-gray-100">
-                Sign In
+                Sign Up
               </a>
               <a href="/login" className="block py-3 text-base font-semibold hover:opacity-90" style={{ color: "#00C37A" }}>
                 Log In
@@ -759,7 +759,7 @@ function HeroSection() {
 
             <div className="anim-fade-up anim-fade-up-4 flex flex-col sm:flex-row gap-3 mb-8">
               <a
-                href="/login"
+                href="/login?mode=signup"
                 className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-95"
                 style={{ backgroundColor: "#00C37A", boxShadow: "0 8px 24px rgba(0,195,122,0.35), 0 2px 8px rgba(0,195,122,0.15)" }}
               >
@@ -1145,7 +1145,7 @@ function CtaSection() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a
-            href="/login"
+            href="/login?mode=signup"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-black cursor-pointer transition-all duration-150 hover:bg-gray-50 active:scale-95"
             style={{ color: "#00C37A" }}
           >
