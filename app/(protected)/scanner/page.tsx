@@ -444,14 +444,14 @@ export default function ScannerPage() {
           -webkit-tap-highlight-color: transparent;
           min-height: 88px;
         }
-        .capture-btn:hover { border-color: #00C37A; color: #007a4d; background: rgba(0,195,122,0.05); }
+        .capture-btn:hover { border-color: #94a3b8; color: #334155; background: #f8fafc; }
         .capture-btn:active { transform: scale(0.96); opacity: 0.82; }
         .capture-btn.primary {
           border-color: rgba(0,195,122,0.6);
           background: rgba(0,195,122,0.06);
           color: #007a4d;
         }
-        .capture-btn.primary:hover { background: rgba(0,195,122,0.12); border-color: #00C37A; }
+        .capture-btn.primary:hover { background: rgba(0,195,122,0.12); border-color: #00C37A; color: #007a4d; }
         .capture-btn-icon {
           width: 38px; height: 38px;
           border-radius: 11px;
@@ -572,7 +572,10 @@ export default function ScannerPage() {
                     Take Photo
                   </button>
                 </div>
-                <ExtractStatus state={extractState} />
+                <ExtractStatus state={extractState} onRetry={extractState.status === 'error' ? () => {
+                  setExtractState({ status: 'idle' })
+                  setCaptureMode('barcode')
+                } : undefined} />
               </div>
             )}
 
@@ -646,7 +649,12 @@ export default function ScannerPage() {
                   </div>
                 )}
 
-                <ExtractStatus state={extractState} />
+                <ExtractStatus state={extractState} onRetry={extractState.status === 'error' ? () => {
+                  setExtractState({ status: 'idle' })
+                  setImagePreview(null)
+                  setImageFile(null)
+                  setCaptureMode('label')
+                } : undefined} />
               </div>
             )}
           </>
@@ -754,7 +762,7 @@ function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis
   )
 }
 
-function ExtractStatus({ state }: { state: ExtractState }) {
+function ExtractStatus({ state, onRetry }: { state: ExtractState; onRetry?: () => void }) {
   if (state.status === 'idle') return null
 
   const config = {
@@ -780,7 +788,24 @@ function ExtractStatus({ state }: { state: ExtractState }) {
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
       )}
-      {state.message}
+      <span style={{ flex: 1 }}>{state.message}</span>
+      {state.status === 'error' && onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          style={{
+            flexShrink: 0, padding: '5px 13px', borderRadius: '100px',
+            border: '1.5px solid #fca5a5', background: 'transparent',
+            color: '#be123c', fontSize: '12px', fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+            transition: 'background 0.13s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.07)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+        >
+          Try Again
+        </button>
+      )}
     </div>
   )
 }

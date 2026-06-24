@@ -73,8 +73,8 @@ export default async function DashboardPage() {
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       <style>{`
         .dashboard-wrap {
-          max-width: 900px;
-          margin: 0 auto;
+          max-width: 960px;
+          margin: 0;
           padding: 32px 20px 80px;
         }
         @media (min-width: 640px) {
@@ -105,14 +105,24 @@ export default async function DashboardPage() {
 
         .scan-grid {
           display: grid;
-          grid-template-columns: 1fr;
-          gap: 16px;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 14px;
         }
-        @media (min-width: 520px) {
-          .scan-grid { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 400px) {
+          .scan-grid { grid-template-columns: 1fr; }
         }
         @media (min-width: 820px) {
           .scan-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-bottom: 32px;
+        }
+        @media (max-width: 480px) {
+          .stats-grid { grid-template-columns: 1fr; gap: 10px; }
         }
 
         .usage-bar-fill {
@@ -179,10 +189,7 @@ export default async function DashboardPage() {
         </div>
 
         {scans.length > 0 && (
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px', marginBottom: '32px',
-          }}>
+          <div className="stats-grid">
             {[
               { label: 'Total Scans', value: String(scans.length), sub: 'products analyzed' },
               {

@@ -39,11 +39,10 @@ function DeleteModal({
   return (
     <div
       onClick={onCancel}
+      className="del-backdrop"
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(15,23,42,0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '20px',
         backdropFilter: 'blur(4px)',
         WebkitBackdropFilter: 'blur(4px)',
         animation: 'fadeIn 0.15s ease',
@@ -51,23 +50,33 @@ function DeleteModal({
     >
       <style>{`
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(12px) scale(0.97) } to { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(14px) scale(0.97) } to { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes sheetUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        .del-backdrop { display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .del-modal {
+          background: #fff; border-radius: 28px;
+          padding: 30px 26px 26px; max-width: 360px; width: 100%;
+          box-shadow: 0 24px 80px rgba(0,0,0,0.18);
+          animation: slideUp 0.22s cubic-bezier(0.16,1,0.3,1);
+        }
+        @media (max-width: 640px) {
+          .del-backdrop { align-items: flex-end !important; padding: 0 !important; }
+          .del-modal {
+            border-radius: 28px 28px 0 0 !important; max-width: 100% !important;
+            padding-bottom: max(26px, env(safe-area-inset-bottom)) !important;
+            animation: sheetUp 0.28s cubic-bezier(0.16,1,0.3,1) !important;
+          }
+        }
       `}</style>
       <div
+        className="del-modal"
         onClick={e => e.stopPropagation()}
-        style={{
-          background: '#fff', borderRadius: '20px',
-          padding: '32px 28px 28px',
-          maxWidth: '380px', width: '100%',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.18)',
-          animation: 'slideUp 0.2s cubic-bezier(0.16,1,0.3,1)',
-        }}
       >
         <div style={{
-          width: 48, height: 48, borderRadius: '14px',
+          width: 48, height: 48, borderRadius: '50%',
           background: 'rgba(239,68,68,0.1)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: '18px',
+          marginBottom: '16px',
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6" />
@@ -80,7 +89,7 @@ function DeleteModal({
         <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
           Delete scan?
         </h2>
-        <p style={{ margin: '0 0 26px', fontSize: '14px', color: '#64748b', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#64748b', lineHeight: 1.6 }}>
           {productName
             ? <>This will permanently remove <strong style={{ color: '#0f172a' }}>{productName}</strong> from your scan history.</>
             : 'This will permanently remove this scan from your history.'}
@@ -92,11 +101,10 @@ function DeleteModal({
             type="button"
             onClick={onCancel}
             style={{
-              flex: 1, padding: '11px', borderRadius: '12px',
+              flex: 1, padding: '12px', borderRadius: '100px',
               border: '1.5px solid #e2e8f0', background: '#fff',
               color: '#475569', fontWeight: 600, fontSize: '14px',
-              cursor: 'pointer', fontFamily: 'inherit',
-              transition: 'background 0.13s, border-color 0.13s',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.13s',
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc' }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}
@@ -107,11 +115,10 @@ function DeleteModal({
             type="button"
             onClick={onConfirm}
             style={{
-              flex: 1, padding: '11px', borderRadius: '12px',
+              flex: 1, padding: '12px', borderRadius: '100px',
               border: 'none', background: '#ef4444',
               color: '#fff', fontWeight: 700, fontSize: '14px',
-              cursor: 'pointer', fontFamily: 'inherit',
-              transition: 'background 0.13s, transform 0.13s',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.13s',
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#dc2626' }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ef4444' }}
@@ -222,9 +229,15 @@ export function ScanCard({ scan }: { scan: Scan }) {
                 }}>
                   {g.label}
                 </span>
-                <span style={{ fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                  {concerns > 0 ? `${concerns} concern${concerns !== 1 ? 's' : ''}` : 'No concerns'}
-                </span>
+                {concerns > 0 ? (
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: g.color, whiteSpace: 'nowrap' }}>
+                    {concerns} concern{concerns !== 1 ? 's' : ''}
+                  </span>
+                ) : (scan.overall_grade === 'A' || scan.overall_grade === 'B') ? (
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#00a868', whiteSpace: 'nowrap' }}>
+                    No concerns
+                  </span>
+                ) : null}
               </div>
               <p style={{ margin: '8px 0 0', fontSize: '11.5px', color: '#cbd5e1' }}>
                 {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}

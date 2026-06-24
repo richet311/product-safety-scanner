@@ -66,14 +66,15 @@ export default function Sidebar({
     <>
       <style>{`
         .sidebar {
-          width: 224px;
+          width: 220px;
           min-height: 100vh;
           height: 100vh;
           position: sticky;
           top: 0;
           flex-shrink: 0;
-          background: #ffffff;
-          border-right: 1px solid #f1f5f9;
+          background: #f0fdf9;
+          border-right: 1.5px solid #bbf7d0;
+          box-shadow: 2px 0 16px rgba(0,195,122,0.07);
           display: flex;
           flex-direction: column;
         }
@@ -81,21 +82,22 @@ export default function Sidebar({
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 9px 12px;
-          border-radius: 10px;
+          padding: 10px 13px;
+          border-radius: 11px;
           text-decoration: none;
           font-size: 13.5px;
-          font-weight: 500;
-          color: #64748b;
+          font-weight: 600;
+          color: #475569;
           transition: background 0.13s ease, color 0.13s ease;
-          margin-bottom: 2px;
+          margin-bottom: 3px;
           font-family: inherit;
         }
-        .sidebar-nav-item:hover { background: #f8fafc; color: #0f172a; }
+        .sidebar-nav-item:hover { background: rgba(0,195,122,0.08); color: #0f172a; }
         .sidebar-nav-item.active {
-          background: rgba(0,195,122,0.1);
+          background: rgba(0,195,122,0.15);
           color: #007a4d;
-          font-weight: 600;
+          font-weight: 700;
+          box-shadow: 0 1px 4px rgba(0,195,122,0.15);
         }
         .sidebar-nav-item.active svg { stroke: #00C37A; }
         .sidebar-signout {
@@ -161,20 +163,12 @@ export default function Sidebar({
       {/* Desktop sidebar */}
       <nav className="sidebar">
         {/* Logo — links to landing page */}
-        <div style={{ padding: '20px 16px 12px' }}>
+        <div style={{ padding: '22px 16px 14px' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-block' }}>
-            <span style={{ fontWeight: 800, fontSize: '20px', letterSpacing: '-0.5px', color: '#0f172a', fontFamily: 'inherit' }}>
+            <span style={{ fontWeight: 800, fontSize: '21px', letterSpacing: '-0.5px', color: '#0f172a', fontFamily: 'inherit' }}>
               Surf<span style={{ color: '#00C37A' }}>elt</span>
             </span>
           </Link>
-          <div style={{ marginTop: '6px' }}>
-            <Link href="/" className="sidebar-back-link">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
-              Back to website
-            </Link>
-          </div>
         </div>
 
         {/* Divider */}

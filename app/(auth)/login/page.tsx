@@ -74,6 +74,7 @@ function LoginPageInner() {
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset' | 'reset-sent' | 'mfa'>(
     searchParams.get('mode') === 'signup' ? 'signup' : 'signin'
   )
+  const urlMessage = searchParams.get('message')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -94,7 +95,7 @@ function LoginPageInner() {
     setError(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?intent=${mode}` },
     })
     if (error) { setError(error.message); setLoading(false) }
   }
@@ -295,6 +296,16 @@ function LoginPageInner() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.07)',
         }}>
 
+          {urlMessage === 'google_existing' && (
+            <div style={{
+              marginBottom: '16px', padding: '11px 14px',
+              borderRadius: '12px', background: '#fff1f2',
+              border: '1px solid #fecdd3', color: '#be123c',
+              fontSize: '13px', lineHeight: 1.5,
+            }}>
+              A Surfelt account already exists with this Google address. Sign in instead.
+            </div>
+          )}
           <div key={viewKey} className="view-enter">
             {mode === 'mfa' ? (
               /* ── MFA challenge ── */
