@@ -51,22 +51,19 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.redirect(`${origin}/login`)
 
-  // Google OAuth duplicate detection: if signup intent but account already existed
-  if (intent === 'signup') {
-    const createdAt = new Date(user.created_at)
-    const isNewUser = Date.now() - createdAt.getTime() < 120_000
-    if (!isNewUser) {
-      return NextResponse.redirect(`${origin}/login?message=google_existing`)
-    }
-  }
-
-  // New user detection: redirect to onboarding if no profile exists yet
+  // Check profile existence once — used for both signup detection and onboarding redirect
   const { data: profile } = await supabase
     .from('profiles')
     .select('id')
     .eq('id', user.id)
     .single()
 
+  // Google OAuth signup with an already-registered account
+  if (intent === 'signup' && profile) {
+    return NextResponse.redirect(`${origin}/login?message=google_existing`)
+  }
+
+  // New user (no profile yet) → onboarding
   if (!profile) {
     return NextResponse.redirect(`${origin}/onboarding`)
   }

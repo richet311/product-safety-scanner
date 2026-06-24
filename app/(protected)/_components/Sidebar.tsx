@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 const NAV = [
   {
@@ -41,6 +42,103 @@ const NAV = [
   },
 ]
 
+function SignOutModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  const [signing, setSigning] = useState(false)
+
+  async function handleConfirm() {
+    setSigning(true)
+    onConfirm()
+  }
+
+  return (
+    <div
+      onClick={signing ? undefined : onCancel}
+      className="so-backdrop"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1200,
+        background: 'rgba(15,23,42,0.45)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        animation: 'soFadeIn 0.15s ease',
+      }}
+    >
+      <style>{`
+        @keyframes soFadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes soSlideUp { from { opacity: 0; transform: translateY(14px) scale(0.97) } to { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes soSheetUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        .so-backdrop { display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .so-modal {
+          background: #fff; border-radius: 28px;
+          padding: 30px 26px 26px; max-width: 340px; width: 100%;
+          box-shadow: 0 24px 80px rgba(0,0,0,0.18);
+          animation: soSlideUp 0.22s cubic-bezier(0.16,1,0.3,1);
+        }
+        @media (max-width: 640px) {
+          .so-backdrop { align-items: flex-end !important; padding: 0 !important; }
+          .so-modal {
+            border-radius: 28px 28px 0 0 !important; max-width: 100% !important;
+            padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
+            animation: soSheetUp 0.28s cubic-bezier(0.16,1,0.3,1) !important;
+          }
+        }
+      `}</style>
+      <div className="so-modal" onClick={e => e.stopPropagation()}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'rgba(239,68,68,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: '16px',
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+        <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
+          Sign out?
+        </h2>
+        <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#64748b', lineHeight: 1.6 }}>
+          You'll be taken back to the home page and will need to sign in again.
+        </p>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={signing}
+            style={{
+              flex: 1, padding: '12px', borderRadius: '100px',
+              border: '1.5px solid #e2e8f0', background: '#fff',
+              color: '#475569', fontWeight: 600, fontSize: '14px',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={signing}
+            style={{
+              flex: 1, padding: '12px', borderRadius: '100px',
+              border: 'none', background: '#ef4444',
+              color: '#fff', fontWeight: 700, fontSize: '14px',
+              cursor: signing ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit', opacity: signing ? 0.7 : 1,
+            }}
+            onMouseEnter={e => { if (!signing) (e.currentTarget as HTMLButtonElement).style.background = '#dc2626' }}
+            onMouseLeave={e => { if (!signing) (e.currentTarget as HTMLButtonElement).style.background = '#ef4444' }}
+          >
+            {signing ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Sidebar({
   displayName,
   avatarUrl,
@@ -49,18 +147,13 @@ export default function Sidebar({
   avatarUrl?: string
 }) {
   const pathname = usePathname()
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [showSignOut, setShowSignOut] = useState(false)
+  const supabase = createClient()
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-      }
-    }
-    if (dropdownOpen) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [dropdownOpen])
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    window.location.href = '/'
+  }
 
   return (
     <>
@@ -74,7 +167,7 @@ export default function Sidebar({
           flex-shrink: 0;
           background: #f0fdf9;
           border-right: 1.5px solid #bbf7d0;
-          box-shadow: 2px 0 16px rgba(0,195,122,0.07);
+          box-shadow: 2px 0 20px rgba(0,195,122,0.1);
           display: flex;
           flex-direction: column;
         }
@@ -100,34 +193,6 @@ export default function Sidebar({
           box-shadow: 0 1px 4px rgba(0,195,122,0.15);
         }
         .sidebar-nav-item.active svg { stroke: #00C37A; }
-        .sidebar-signout {
-          width: 100%;
-          padding: 7px 10px;
-          border-radius: 8px;
-          border: 1px solid #f1f5f9;
-          background: none;
-          color: #94a3b8;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background 0.13s ease, color 0.13s ease, border-color 0.13s ease;
-          text-align: left;
-          font-family: inherit;
-        }
-        .sidebar-signout:hover { background: #fff1f2; color: #ef4444; border-color: #fecdd3; }
-        .sidebar-back-link {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11.5px;
-          font-weight: 500;
-          color: #94a3b8;
-          text-decoration: none;
-          padding: 4px 2px;
-          transition: color 0.13s ease;
-          font-family: inherit;
-        }
-        .sidebar-back-link:hover { color: #475569; }
 
         .mobile-nav {
           display: none;
@@ -137,6 +202,7 @@ export default function Sidebar({
           border-top: 1px solid #f1f5f9;
           z-index: 50;
           padding: 6px 0 max(env(safe-area-inset-bottom), 6px);
+          box-shadow: 0 -4px 20px rgba(0,0,0,0.07);
         }
         .mobile-nav-item {
           flex: 1;
@@ -160,9 +226,16 @@ export default function Sidebar({
         }
       `}</style>
 
+      {showSignOut && (
+        <SignOutModal
+          onConfirm={handleSignOut}
+          onCancel={() => setShowSignOut(false)}
+        />
+      )}
+
       {/* Desktop sidebar */}
       <nav className="sidebar">
-        {/* Logo — links to landing page */}
+        {/* Logo */}
         <div style={{ padding: '22px 16px 14px' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-block' }}>
             <span style={{ fontWeight: 800, fontSize: '21px', letterSpacing: '-0.5px', color: '#0f172a', fontFamily: 'inherit' }}>
@@ -171,8 +244,7 @@ export default function Sidebar({
           </Link>
         </div>
 
-        {/* Divider */}
-        <div style={{ height: '1px', background: '#f1f5f9', margin: '0 16px 10px' }} />
+        <div style={{ height: '1px', background: '#e2f5ec', margin: '0 16px 10px' }} />
 
         <div style={{ flex: 1, padding: '2px 10px 0' }}>
           {NAV.map(item => (
@@ -187,87 +259,53 @@ export default function Sidebar({
           ))}
         </div>
 
-        <div style={{ padding: '12px 10px', borderTop: '1px solid #f1f5f9', position: 'relative' }} ref={dropdownRef}>
-          {/* Dropdown menu — opens upward */}
-          {dropdownOpen && (
-            <div style={{
-              position: 'absolute', bottom: 'calc(100% + 6px)', left: '10px', right: '10px',
-              background: '#fff', border: '1px solid #e9eef4', borderRadius: '14px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 100,
-              overflow: 'hidden', padding: '6px',
-            }}>
-              <Link
-                href="/dashboard"
-                onClick={() => setDropdownOpen(false)}
-                style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '9px', textDecoration: 'none', color: '#0f172a', fontSize: '13.5px', fontWeight: 500, transition: 'background 0.12s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
-                onMouseLeave={e => (e.currentTarget.style.background = '')}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-                  <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
-                </svg>
-                Dashboard
-              </Link>
-              <Link
-                href="/settings"
-                onClick={() => setDropdownOpen(false)}
-                style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '9px', textDecoration: 'none', color: '#0f172a', fontSize: '13.5px', fontWeight: 500, transition: 'background 0.12s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
-                onMouseLeave={e => (e.currentTarget.style.background = '')}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-                My Profile
-              </Link>
-              <div style={{ height: '1px', background: '#f1f5f9', margin: '4px 0' }} />
-              <form action="/api/auth/signout" method="POST">
-                <button
-                  type="submit"
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '9px', border: 'none', background: 'none', color: '#ef4444', fontSize: '13.5px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s', textAlign: 'left' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#fff1f2')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
-                  Sign out
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Avatar trigger button */}
-          <button
-            type="button"
-            onClick={() => setDropdownOpen(o => !o)}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '9px',
-              padding: '7px 8px', borderRadius: '10px', border: 'none',
-              background: dropdownOpen ? 'rgba(0,195,122,0.08)' : 'none',
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.13s',
-              textAlign: 'left',
-            }}
-            onMouseEnter={e => { if (!dropdownOpen) e.currentTarget.style.background = '#f8fafc' }}
-            onMouseLeave={e => { if (!dropdownOpen) e.currentTarget.style.background = '' }}
-          >
+        {/* User row + sign out */}
+        <div style={{ padding: '12px 10px 16px', borderTop: '1px solid #e2f5ec' }}>
+          {/* User info */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '9px',
+            padding: '8px 10px', borderRadius: '10px',
+            marginBottom: '8px',
+          }}>
             {avatarUrl ? (
-              <img src={avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              <img src={avatarUrl} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
             ) : (
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,195,122,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: '#007a4d', flexShrink: 0, fontFamily: 'inherit' }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(0,195,122,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: '#007a4d', flexShrink: 0 }}>
                 {displayName?.[0]?.toUpperCase() ?? '?'}
               </div>
             )}
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
-                {displayName}
-              </p>
-            </div>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transition: 'transform 0.18s', transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-              <polyline points="6 9 12 15 18 9"/>
+            <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              {displayName}
+            </p>
+          </div>
+
+          {/* Sign out button */}
+          <button
+            type="button"
+            onClick={() => setShowSignOut(true)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '9px 10px', borderRadius: '10px',
+              border: '1px solid #fecdd3', background: '#fff1f2',
+              color: '#ef4444', fontSize: '13px', fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background 0.13s, border-color 0.13s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = '#fee2e2'
+              ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#fca5a5'
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = '#fff1f2'
+              ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#fecdd3'
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
+            Sign out
           </button>
         </div>
       </nav>
@@ -284,12 +322,19 @@ export default function Sidebar({
             {item.label}
           </Link>
         ))}
-        <Link href="/" className="mobile-nav-item">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
+        <button
+          type="button"
+          onClick={() => setShowSignOut(true)}
+          className="mobile-nav-item"
+          style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444' }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
-          Home
-        </Link>
+          Sign out
+        </button>
       </nav>
     </>
   )

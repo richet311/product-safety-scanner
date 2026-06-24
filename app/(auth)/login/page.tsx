@@ -689,10 +689,39 @@ function LoginPageInner() {
           </div>
         </div>
 
-        {/* Back */}
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px' }}>
-          <a href="/" className="back-link">← Back to home</a>
-        </p>
+        {/* Back to home */}
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+          <a
+            href="/"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '9px 20px', borderRadius: '100px',
+              border: '1.5px solid #e2e8f0', background: '#fff',
+              color: '#475569', fontSize: '13px', fontWeight: 600,
+              textDecoration: 'none', fontFamily: 'inherit',
+              transition: 'border-color 0.15s, background 0.15s, color 0.15s',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLAnchorElement
+              el.style.borderColor = '#00C37A'
+              el.style.color = '#007a4d'
+              el.style.background = 'rgba(0,195,122,0.05)'
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLAnchorElement
+              el.style.borderColor = '#e2e8f0'
+              el.style.color = '#475569'
+              el.style.background = '#fff'
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            Back to home
+          </a>
+        </div>
       </div>
     </div>
   )

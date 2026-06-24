@@ -264,6 +264,82 @@ function UsernameModal({
   )
 }
 
+function SaveConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div
+      onClick={onCancel}
+      className="modal-backdrop"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1100,
+        background: 'rgba(15,23,42,0.4)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        animation: 'fadeIn 0.15s ease',
+      }}
+    >
+      <div
+        className="sc-modal"
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: '28px',
+          padding: '30px 26px 26px', maxWidth: '340px', width: '100%',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.16)',
+          animation: 'slideUp 0.22s cubic-bezier(0.16,1,0.3,1)',
+        }}
+      >
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'rgba(0,195,122,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: '16px',
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </div>
+        <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
+          Save changes?
+        </h2>
+        <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#64748b', lineHeight: 1.6 }}>
+          Your profile and health settings will be updated.
+        </p>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              flex: 1, padding: '12px', borderRadius: '100px',
+              border: '1.5px solid #e2e8f0', background: '#fff',
+              color: '#475569', fontWeight: 600, fontSize: '14px',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              flex: 1, padding: '12px', borderRadius: '100px',
+              border: 'none', background: '#00C37A',
+              color: '#fff', fontWeight: 700, fontSize: '14px',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#00b36e' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#00C37A' }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DeleteAccountModal({
   onConfirm,
   onCancel,
@@ -433,6 +509,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletePending, startDeleteTransition] = useTransition()
@@ -617,7 +694,7 @@ export default function SettingsPage() {
       setShowUsernameModal(true)
       return
     }
-    await performSave()
+    setShowSaveConfirm(true)
   }
 
   async function handleUsernameModalConfirm(password: string) {
@@ -658,9 +735,9 @@ export default function SettingsPage() {
         .s-input:disabled { background: #f8fafc; color: #94a3b8; cursor: default; }
         .s-card {
           background: #fff; border-radius: 22px;
-          border: 1px solid #f1f5f9; padding: 0;
+          border: 1px solid #eff3f8; padding: 0;
           margin-bottom: 16px;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
           overflow: hidden;
         }
         .s-card-header {
@@ -702,6 +779,12 @@ export default function SettingsPage() {
         .sub-section { border-top: 1px solid #f1f5f9; padding-top: 22px; margin-top: 22px; }
         @media (max-width: 640px) {
           .save-btn { width: 100%; padding: 14px 0; }
+          .modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
+          .sc-modal {
+            border-radius: 28px 28px 0 0 !important; max-width: 100% !important;
+            padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
+            animation: sheetUp 0.28s cubic-bezier(0.16,1,0.3,1) !important;
+          }
         }
       `}</style>
 
@@ -721,7 +804,7 @@ export default function SettingsPage() {
         marginBottom: '18px', padding: '20px 22px',
         background: 'linear-gradient(135deg, rgba(0,195,122,0.07) 0%, rgba(0,195,122,0.02) 70%, transparent 100%)',
         borderRadius: '22px', border: '1px solid rgba(0,195,122,0.18)',
-        boxShadow: '0 2px 14px rgba(0,195,122,0.08)',
+        boxShadow: '0 4px 20px rgba(0,195,122,0.12), 0 1px 4px rgba(0,0,0,0.04)',
       }}>
         <div style={{
           width: 58, height: 58, borderRadius: '50%',
@@ -1163,6 +1246,13 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {showSaveConfirm && (
+        <SaveConfirmModal
+          onConfirm={() => { setShowSaveConfirm(false); performSave() }}
+          onCancel={() => setShowSaveConfirm(false)}
+        />
+      )}
 
       {showUsernameModal && (
         <UsernameModal
