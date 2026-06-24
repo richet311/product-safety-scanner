@@ -79,6 +79,7 @@ function LoginPageInner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
+  const [emailExists, setEmailExists] = useState(false)
   const supabase = createClient()
 
   async function signInWithGoogle() {
@@ -95,13 +96,19 @@ function LoginPageInner() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setEmailExists(false)
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email, password,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       })
-      if (error) setError(error.message)
-      else setConfirmed(true)
+      if (error) {
+        setError(error.message)
+      } else if (data.user && data.user.identities && data.user.identities.length === 0) {
+        setEmailExists(true)
+      } else {
+        setConfirmed(true)
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setError(error.message)
@@ -114,11 +121,20 @@ function LoginPageInner() {
     setMode(m => m === 'signin' ? 'signup' : 'signin')
     setError(null)
     setConfirmed(false)
+    setEmailExists(false)
     setEmail('')
     setPassword('')
   }
 
-  const viewKey = confirmed ? 'confirmed' : mode
+  function switchToSignIn() {
+    setMode('signin')
+    setError(null)
+    setConfirmed(false)
+    setEmailExists(false)
+    setPassword('')
+  }
+
+  const viewKey = confirmed ? 'confirmed' : emailExists ? 'email-exists' : mode
 
   return (
     <div className="login-outer" style={{
@@ -223,7 +239,51 @@ function LoginPageInner() {
         }}>
 
           <div key={viewKey} className="view-enter">
-            {confirmed ? (
+            {emailExists ? (
+              /* ── Email already registered ── */
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <div style={{
+                  width: 52, height: 52,
+                  borderRadius: '50%',
+                  background: 'rgba(251,191,36,0.12)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 18px',
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <h2 style={{ fontWeight: 700, fontSize: '20px', color: '#0f172a', marginBottom: '8px' }}>
+                  Email already registered
+                </h2>
+                <p style={{ color: '#64748b', fontSize: '14px', lineHeight: 1.65, marginBottom: '24px' }}>
+                  <strong style={{ color: '#0f172a' }}>{email}</strong> already has an account.<br />
+                  Log in instead, or use a different email.
+                </p>
+                <button
+                  type="button"
+                  onClick={switchToSignIn}
+                  className="btn-primary"
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#00C37A',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '14.5px',
+                    cursor: 'pointer',
+                    marginBottom: '12px',
+                  }}
+                >
+                  Log in to this account
+                </button>
+                <button type="button" onClick={() => { setEmailExists(false); setEmail(''); setPassword('') }} className="switch-btn" style={{ fontSize: '14px' }}>
+                  Use a different email
+                </button>
+              </div>
+            ) : confirmed ? (
               /* ── Confirmation ── */
               <div style={{ textAlign: 'center', padding: '8px 0' }}>
                 <div style={{
