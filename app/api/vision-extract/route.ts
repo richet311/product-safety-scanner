@@ -32,16 +32,19 @@ export async function POST(request: Request) {
             },
             {
               type: 'text',
-              text: `Look at this product image and extract information from the label.
+              text: `You are analyzing a product label photo to extract ingredient information.
 
 Return ONLY valid JSON with this exact schema:
 {"product_name": "brand and product name or null", "ingredients": "full ingredient list as text or null"}
 
-Rules:
-- For food/beverages: extract the "Ingredients:" section as-is
-- For medications/OTC drugs: combine Active AND Inactive ingredients into one string, e.g. "Active: Acetaminophen 325mg, Dextromethorphan 15mg. Inactive: gelatin, glycerin, polyethylene glycol"
-- For supplements: list all ingredients shown on the Supplement Facts panel
-- If no ingredient list is visible or readable, set ingredients to null
+Instructions:
+- Search the ENTIRE image for any text that lists ingredients — it may be on the back, side, or bottom of the product
+- For food/beverages: extract the full "Ingredients:" section exactly as printed, including all sub-ingredients in parentheses
+- For medications/OTC drugs: combine Active AND Inactive ingredients into one string, e.g. "Active: Acetaminophen 325mg. Inactive: gelatin, glycerin"
+- For supplements: transcribe the complete Supplement Facts / Nutrition Facts panel including all listed ingredients
+- For cosmetics/personal care: extract the full ingredient list (often starts with "Ingredients:" and lists INCI names)
+- If the image shows only the front of the product with no ingredient list visible, set ingredients to null
+- Transcribe ALL text in the ingredient section — do not summarize or truncate
 - Return ONLY the JSON object, no other text`,
             },
           ] as ChatCompletionContentPart[],

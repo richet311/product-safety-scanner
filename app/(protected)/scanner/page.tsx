@@ -173,7 +173,7 @@ export default function ScannerPage() {
 
     setExtractState({ status: 'loading', message: 'Reading product label…' })
     try {
-      const base64 = await resizeAndEncode(file, 1280)
+      const base64 = await resizeAndEncode(file, 2048)
 
       const res = await fetch('/api/vision-extract', {
         method: 'POST',
