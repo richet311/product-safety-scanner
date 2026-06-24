@@ -71,15 +71,22 @@ function Field({
 
 function LoginPageInner() {
   const searchParams = useSearchParams()
-  const [mode, setMode] = useState<'signin' | 'signup'>(
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset' | 'reset-sent' | 'mfa'>(
     searchParams.get('mode') === 'signup' ? 'signup' : 'signin'
   )
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [username, setUsername] = useState('')
+  const [dob, setDob] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [emailExists, setEmailExists] = useState(false)
+  const [mfaFactorId, setMfaFactorId] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaVerifying, setMfaVerifying] = useState(false)
   const supabase = createClient()
 
   async function signInWithGoogle() {
@@ -100,7 +107,10 @@ function LoginPageInner() {
     if (mode === 'signup') {
       const { data, error } = await supabase.auth.signUp({
         email, password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { first_name: firstName, last_name: lastName, username, date_of_birth: dob },
+        },
       })
       if (error) {
         setError(error.message)
@@ -111,19 +121,62 @@ function LoginPageInner() {
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError(error.message)
-      else window.location.href = '/dashboard'
+      if (error) {
+        setError(error.message)
+      } else {
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+          const { data: factors } = await supabase.auth.mfa.listFactors()
+          const totp = factors?.totp?.[0]
+          if (totp) { setMfaFactorId(totp.id); setMode('mfa') }
+        } else {
+          window.location.href = '/dashboard'
+        }
+      }
     }
     setLoading(false)
   }
 
+  async function handleMfa(e: React.FormEvent) {
+    e.preventDefault()
+    setMfaVerifying(true)
+    setError(null)
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaFactorId, code: mfaCode.trim() })
+    setMfaVerifying(false)
+    if (error) {
+      setError(error.message)
+    } else {
+      window.location.href = '/dashboard'
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email) return
+    setLoading(true)
+    setError(null)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    })
+    setLoading(false)
+    if (error) {
+      setError(error.message)
+    } else {
+      setMode('reset-sent')
+    }
+  }
+
   function switchMode() {
-    setMode(m => m === 'signin' ? 'signup' : 'signin')
+    setMode(m => (m === 'signin' || m === 'reset' || m === 'reset-sent') ? 'signup' : 'signin')
     setError(null)
     setConfirmed(false)
     setEmailExists(false)
     setEmail('')
     setPassword('')
+    setFirstName('')
+    setLastName('')
+    setUsername('')
+    setDob('')
   }
 
   function switchToSignIn() {
@@ -132,6 +185,10 @@ function LoginPageInner() {
     setConfirmed(false)
     setEmailExists(false)
     setPassword('')
+    setFirstName('')
+    setLastName('')
+    setUsername('')
+    setDob('')
   }
 
   const viewKey = confirmed ? 'confirmed' : emailExists ? 'email-exists' : mode
@@ -239,7 +296,184 @@ function LoginPageInner() {
         }}>
 
           <div key={viewKey} className="view-enter">
-            {emailExists ? (
+            {mode === 'mfa' ? (
+              /* ── MFA challenge ── */
+              <div>
+                <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%',
+                    background: 'rgba(0,195,122,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 16px',
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="11" width="14" height="10" rx="2" />
+                      <path d="M8 11V7a4 4 0 018 0v4" />
+                    </svg>
+                  </div>
+                  <h1 style={{ fontWeight: 700, fontSize: '21px', color: '#0f172a', margin: '0 0 5px' }}>
+                    Two-factor authentication
+                  </h1>
+                  <p style={{ color: '#94a3b8', fontSize: '13.5px', margin: 0 }}>
+                    Open your authenticator app and enter the 6-digit code.
+                  </p>
+                </div>
+
+                {error && (
+                  <div style={{
+                    marginBottom: '20px', padding: '11px 14px',
+                    borderRadius: '10px', background: '#fff1f2',
+                    border: '1px solid #fecdd3', color: '#be123c',
+                    fontSize: '13px', lineHeight: 1.5,
+                  }}>
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleMfa} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      Authentication Code
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={mfaCode}
+                      onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000"
+                      autoFocus
+                      style={{
+                        width: '100%', padding: '14px',
+                        border: '1.5px solid #e2e8f0', borderRadius: '10px',
+                        fontSize: '24px', fontWeight: 800, letterSpacing: '0.3em',
+                        textAlign: 'center', outline: 'none', color: '#0f172a',
+                        background: '#fff', boxSizing: 'border-box',
+                        WebkitAppearance: 'none',
+                        transition: 'border-color 0.2s',
+                      }}
+                      onFocus={e => { e.currentTarget.style.borderColor = '#00C37A' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0' }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={mfaVerifying || mfaCode.length < 6}
+                    className="btn-primary"
+                    style={{
+                      width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
+                      background: '#00C37A', color: '#fff', fontWeight: 700, fontSize: '14.5px',
+                      cursor: mfaVerifying || mfaCode.length < 6 ? 'not-allowed' : 'pointer',
+                      opacity: mfaVerifying || mfaCode.length < 6 ? 0.65 : 1,
+                    }}
+                  >
+                    {mfaVerifying ? 'Verifying…' : 'Verify'}
+                  </button>
+                </form>
+                <p style={{ textAlign: 'center', marginTop: '18px', fontSize: '13px', color: '#94a3b8' }}>
+                  <button type="button" onClick={switchToSignIn} className="switch-btn" style={{ fontSize: '13px', color: '#94a3b8' }}>
+                    ← Back to sign in
+                  </button>
+                </p>
+              </div>
+            ) : mode === 'reset' ? (
+              /* ── Forgot password ── */
+              <div>
+                <div style={{ marginBottom: '24px' }}>
+                  <button
+                    type="button"
+                    onClick={switchToSignIn}
+                    style={{
+                      background: 'none', border: 'none', padding: 0,
+                      color: '#94a3b8', fontSize: '13px', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '5px',
+                      marginBottom: '16px', fontFamily: 'inherit',
+                      transition: 'color 0.15s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#475569' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#94a3b8' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 12H5M12 5l-7 7 7 7" />
+                    </svg>
+                    Back to sign in
+                  </button>
+                  <h1 style={{ fontWeight: 700, fontSize: '21px', color: '#0f172a', margin: '0 0 5px' }}>
+                    Reset your password
+                  </h1>
+                  <p style={{ color: '#94a3b8', fontSize: '13.5px', margin: 0 }}>
+                    Enter your email and we&apos;ll send you a reset link.
+                  </p>
+                </div>
+
+                {error && (
+                  <div style={{
+                    marginBottom: '20px', padding: '11px 14px',
+                    borderRadius: '10px', background: '#fff1f2',
+                    border: '1px solid #fecdd3', color: '#be123c',
+                    fontSize: '13px', lineHeight: 1.5,
+                  }}>
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <Field id="reset-email" label="Email" type="email" value={email} onChange={setEmail} required />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-primary"
+                    style={{
+                      marginTop: '6px', width: '100%', padding: '13px',
+                      borderRadius: '12px', border: 'none',
+                      background: '#00C37A', color: '#fff',
+                      fontWeight: 700, fontSize: '14.5px',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      opacity: loading ? 0.65 : 1,
+                    }}
+                  >
+                    {loading ? 'Sending…' : 'Send reset link'}
+                  </button>
+                </form>
+              </div>
+            ) : mode === 'reset-sent' ? (
+              /* ── Reset email sent ── */
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: '50%',
+                  background: 'rgba(0,195,122,0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 18px',
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#00C37A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points="22,6 12,13 2,6" stroke="#00C37A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <h2 style={{ fontWeight: 700, fontSize: '20px', color: '#0f172a', marginBottom: '8px' }}>
+                  Check your email
+                </h2>
+                <p style={{ color: '#64748b', fontSize: '14px', lineHeight: 1.65, marginBottom: '28px' }}>
+                  We sent a password reset link to<br />
+                  <strong style={{ color: '#0f172a' }}>{email}</strong>
+                </p>
+                <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '16px' }}>
+                  Didn&apos;t get it? Check your spam folder or{' '}
+                  <button
+                    type="button"
+                    onClick={() => setMode('reset')}
+                    className="switch-btn"
+                    style={{ fontSize: '13px' }}
+                  >
+                    try again
+                  </button>
+                  .
+                </p>
+                <button type="button" onClick={switchToSignIn} className="switch-btn" style={{ fontSize: '14px' }}>
+                  ← Back to sign in
+                </button>
+              </div>
+            ) : emailExists ? (
               /* ── Email already registered ── */
               <div style={{ textAlign: 'center', padding: '8px 0' }}>
                 <div style={{
@@ -338,8 +572,41 @@ function LoginPageInner() {
                 )}
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '22px' }}>
+                  {mode === 'signup' && (
+                    <>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ flex: 1 }}>
+                          <Field id="firstName" label="First Name" type="text" value={firstName} onChange={setFirstName} required />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <Field id="lastName" label="Last Name" type="text" value={lastName} onChange={setLastName} required />
+                        </div>
+                      </div>
+                      <Field id="username" label="Username" type="text" value={username} onChange={setUsername} required />
+                      <Field id="dob" label="Date of Birth" type="date" value={dob} onChange={setDob} required />
+                    </>
+                  )}
                   <Field id="email" label="Email" type="email" value={email} onChange={setEmail} required />
-                  <Field id="password" label="Password" type="password" value={password} onChange={setPassword} required minLength={6} />
+                  <div>
+                    <Field id="password" label="Password" type="password" value={password} onChange={setPassword} required minLength={6} />
+                    {mode === 'signin' && (
+                      <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => { setError(null); setMode('reset') }}
+                          style={{
+                            background: 'none', border: 'none', padding: 0,
+                            color: '#94a3b8', fontSize: '12.5px', cursor: 'pointer',
+                            fontFamily: 'inherit', transition: 'color 0.15s',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#00C37A' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#94a3b8' }}
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="submit"
                     disabled={loading}

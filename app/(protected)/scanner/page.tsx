@@ -144,52 +144,51 @@ export default function ScannerPage() {
     }
   }
 
-  async function runOcrAndSearch(file: File) {
+  async function resizeAndEncode(file: File, maxPx: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { reject(new Error('canvas')); return }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
+        resolve(dataUrl.split(',')[1])
+      }
+      img.onerror = reject
+      img.src = url
+    })
+  }
+
+  async function runVisionExtract(file: File) {
     setImageFile(file)
     const reader = new FileReader()
     reader.onload = ev => setImagePreview(ev.target?.result as string)
     reader.readAsDataURL(file)
 
-    setExtractState({ status: 'loading', message: 'Loading text recognition…' })
+    setExtractState({ status: 'loading', message: 'Reading product label…' })
     try {
-      const Tesseract = (await import('tesseract.js')).default
-      const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-        logger: (m: { status: string; progress: number }) => {
-          if (m.status === 'recognizing text') {
-            setExtractState({ status: 'loading', message: `Reading text… ${Math.round(m.progress * 100)}%` })
-          }
-        },
-      })
+      const base64 = await resizeAndEncode(file, 1280)
 
-      const query = text
-        .split('\n')
-        .map((l: string) => l.trim())
-        .filter((l: string) => l.length > 2 && !/^\d+[\d\s.,/%gG]*$/.test(l))
-        .slice(0, 4)
-        .join(' ')
-        .trim()
-
-      if (!query) {
-        setExtractState({ status: 'error', message: 'Could not read text from the photo. Try better lighting or a closer shot.' })
-        return
-      }
-
-      setExtractState({ status: 'loading', message: 'Searching product database…' })
-
-      const res = await fetch('/api/extract', {
+      const res = await fetch('/api/vision-extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_name: query }),
+        body: JSON.stringify({ image_base64: base64 }),
       })
       const json = await res.json()
 
       if (!res.ok || !json.ingredients) {
-        setExtractState({ status: 'error', message: json.error ?? 'Product not found. Try scanning the barcode.' })
+        setExtractState({ status: 'error', message: json.error ?? "Couldn't read the ingredient list. Make sure the label is in focus and try again." })
         return
       }
 
       setExtractState({ status: 'loading', message: 'Analyzing ingredients…' })
-      await runAnalysis(json.product_name, json.ingredients, file, json.product_image_url)
+      await runAnalysis(json.product_name, json.ingredients, file)
     } catch {
       setExtractState({ status: 'error', message: 'Could not process the photo. Please try again.' })
     }
@@ -247,7 +246,7 @@ export default function ScannerPage() {
         message: 'Barcode not found in that photo. Try better lighting, hold the camera steady, or upload the barcode image.',
       })
     } else if (mode === 'label') {
-      runOcrAndSearch(file)
+      runVisionExtract(file)
     }
   }
 
@@ -287,7 +286,7 @@ export default function ScannerPage() {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
-    runOcrAndSearch(file)
+    runVisionExtract(file)
   }
 
   function removeImage() {
@@ -581,7 +580,7 @@ export default function ScannerPage() {
               <div className="scan-card">
                 <p className="scan-card-title">Product Photo</p>
                 <p className="scan-card-desc">
-                  Take a photo of the product — Surfelt recognizes it and finds the ingredients automatically.
+                  Take a photo of the ingredient label. Works for food, medication, supplements, and more.
                 </p>
                 <input ref={labelUploadRef} type="file" accept="image/*" onChange={handleLabelFile} style={{ display: 'none' }} />
 
