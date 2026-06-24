@@ -1,8 +1,65 @@
-import Groq from 'groq-sdk'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+type AIProvider = { name: string; url: string; model: string; apiKey: string | undefined }
+
+const AI_PROVIDERS: AIProvider[] = [
+  {
+    name: 'Groq',
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    model: 'llama-3.3-70b-versatile',
+    apiKey: process.env.GROQ_API_KEY,
+  },
+  {
+    name: 'Cerebras',
+    url: 'https://api.cerebras.ai/v1/chat/completions',
+    model: 'llama-3.3-70b',
+    apiKey: process.env.CEREBRAS_API_KEY,
+  },
+  {
+    name: 'SambaNova',
+    url: 'https://api.sambanova.ai/v1/chat/completions',
+    model: 'Meta-Llama-3.3-70B-Instruct',
+    apiKey: process.env.SAMBANOVA_API_KEY,
+  },
+]
+
+async function callAI(prompt: string): Promise<string> {
+  for (const provider of AI_PROVIDERS) {
+    if (!provider.apiKey) continue
+    try {
+      const res = await fetch(provider.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.apiKey}` },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          temperature: 0,
+          max_tokens: 4096,
+        }),
+      })
+      if (res.status === 429) {
+        console.warn(`[scan] ${provider.name} rate limited — trying next provider`)
+        continue
+      }
+      if (!res.ok) {
+        console.warn(`[scan] ${provider.name} returned ${res.status} — trying next provider`)
+        continue
+      }
+      const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> }
+      const content = data.choices?.[0]?.message?.content
+      if (!content) {
+        console.warn(`[scan] ${provider.name} returned empty content — trying next provider`)
+        continue
+      }
+      return content
+    } catch (err) {
+      console.warn(`[scan] ${provider.name} request failed:`, err)
+    }
+  }
+  throw new Error('All AI providers are currently unavailable or rate limited.')
+}
 
 const DEFAULT_DAILY_LIMIT = 20
 
@@ -85,14 +142,7 @@ export async function POST(request: Request) {
     ? `\nUser health profile — personalize the analysis for this person:\n${profileLines.join('\n')}\n`
     : ''
 
-  let analysis: ScanAnalysis
-  try {
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        {
-          role: 'user',
-          content: `Analyze these product ingredients for safety. Return ONLY valid JSON.
+  const prompt = `Analyze these product ingredients for safety. Return ONLY valid JSON.
 ${productName ? `\nProduct: ${productName}` : ''}
 
 This product may be a food, beverage, medication, supplement, cosmetic, skincare product, personal care item, or household product. Grade each ingredient based on safety for its intended use (oral, topical, inhalation, etc.) — infer the usage context from the product name and ingredient list.
@@ -110,20 +160,19 @@ D = potentially harmful, avoid if possible
 "user_alerts" is an array of short personal warning strings (e.g. "Contains Dairy — you are lactose intolerant"). Leave empty [] if no profile or no conflicts.
 ${profileSection}
 Ingredients list:
-${ingredients}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0,
-      max_tokens: 4096,
-    })
+${ingredients}`
 
-    const content = completion.choices[0]?.message?.content
-    if (!content) throw new Error('Empty response')
+  let analysis: ScanAnalysis
+  try {
+    const content = await callAI(prompt)
     analysis = JSON.parse(content) as ScanAnalysis
   } catch (err) {
+    const isRateLimit = err instanceof Error && err.message.includes('rate limited')
     console.error('[scan] analysis failed:', err)
-    return NextResponse.json({ error: 'Analysis failed. Please try again.' }, { status: 502 })
+    return NextResponse.json(
+      { error: isRateLimit ? 'Our AI is busy right now — please try again in a moment.' : 'Analysis failed. Please try again.' },
+      { status: isRateLimit ? 503 : 502 }
+    )
   }
 
   const safeGrade = (analysis.overall_grade?.toUpperCase() ?? 'B') as 'A' | 'B' | 'C' | 'D'

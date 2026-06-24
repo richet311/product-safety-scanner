@@ -155,9 +155,10 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-lg font-black text-gray-900 mb-3">9. Third-Party Services</h2>
             <p>
-              Surfelt uses third-party services including Supabase, Groq, and Google. Your use of
-              the Service is also subject to those providers' terms of service. We are not responsible
-              for the practices of third-party services.
+              Surfelt uses third-party services including Supabase, Groq, Cerebras, SambaNova, and
+              Google. Ingredient text and product images you submit are sent to one or more of these
+              AI providers for processing. Your use of the Service is also subject to those providers'
+              terms of service. We are not responsible for the practices of third-party services.
             </p>
           </section>
 

@@ -132,9 +132,22 @@ export default function PrivacyPolicyPage() {
                 stored on Supabase infrastructure.
               </li>
               <li>
-                <strong className="text-gray-800">Groq</strong>: provides the AI inference API used to
-                analyze ingredient lists and extract text from product photos. Ingredient text and images
-                are sent to Groq for processing and are subject to Groq's privacy policy.
+                <strong className="text-gray-800">Groq</strong>: our primary AI inference provider,
+                used to analyze ingredient lists and extract text from product photos. Ingredient text
+                and product images are sent to Groq for processing and are subject to{' '}
+                <a href="https://groq.com/privacy-policy/" className="underline" style={{ color: '#00C37A' }}>Groq's privacy policy</a>.
+              </li>
+              <li>
+                <strong className="text-gray-800">Cerebras</strong>: a secondary AI inference provider
+                used as a fallback when the primary provider is unavailable. Ingredient text may be
+                sent to Cerebras for processing and is subject to{' '}
+                <a href="https://cerebras.ai/privacy-policy" className="underline" style={{ color: '#00C37A' }}>Cerebras's privacy policy</a>.
+              </li>
+              <li>
+                <strong className="text-gray-800">SambaNova</strong>: a tertiary AI inference provider
+                used as a fallback when other providers are unavailable. Ingredient text may be sent
+                to SambaNova for processing and is subject to{' '}
+                <a href="https://sambanova.ai/privacy-policy" className="underline" style={{ color: '#00C37A' }}>SambaNova's privacy policy</a>.
               </li>
               <li>
                 <strong className="text-gray-800">Google</strong>: provides OAuth sign-in. When you sign

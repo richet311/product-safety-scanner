@@ -223,7 +223,15 @@ export default function OnboardingClient({
     if (err) { setError(err.message) } else { window.location.href = '/dashboard' }
   }
 
-  const step1Valid = firstName.trim() && lastName.trim() && dob && username.trim()
+  const dobAge = dob ? (() => {
+    const b = new Date(dob)
+    const t = new Date()
+    let a = t.getFullYear() - b.getFullYear()
+    if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--
+    return a
+  })() : null
+
+  const step1Valid = firstName.trim() && lastName.trim() && dob && username.trim() && (dobAge === null || dobAge >= 13)
 
   return (
     <div style={{
@@ -318,8 +326,15 @@ export default function OnboardingClient({
                 </div>
               </div>
 
-              <Field id="ob-dob" label="Date of Birth" type="date" value={dob} onChange={setDob}
-                max={new Date().toISOString().split('T')[0]} required />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <Field id="ob-dob" label="Date of Birth" type="date" value={dob} onChange={setDob}
+                  max={new Date().toISOString().split('T')[0]} required />
+                {dobAge !== null && dobAge < 13 && (
+                  <p style={{ margin: 0, fontSize: '12.5px', color: '#be123c', fontWeight: 600 }}>
+                    You must be at least 13 years old to use Surfelt.
+                  </p>
+                )}
+              </div>
 
               <Field id="ob-user" label="Username" type="text" value={username} onChange={setUsername}
                 placeholder="janedoe" required />
