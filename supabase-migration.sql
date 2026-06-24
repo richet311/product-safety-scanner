@@ -1,8 +1,10 @@
 -- =============================================
 -- Surfelt — Supabase SQL Migration
 -- Paste this into: Dashboard → SQL Editor → New query
--- Run each section in order. If a table already
--- exists the IF NOT EXISTS guard skips it safely.
+-- Safe to re-run. CREATE TABLE IF NOT EXISTS skips
+-- existing tables; ALTER TABLE ADD COLUMN IF NOT EXISTS
+-- adds any columns that may have been missing from
+-- an earlier run.
 -- =============================================
 
 
@@ -53,6 +55,14 @@ create table if not exists public.scans (
   image_url       text,
   created_at      timestamptz not null default now()
 );
+
+-- Add any columns that may be missing from a prior partial run
+alter table public.scans add column if not exists product_name    text;
+alter table public.scans add column if not exists image_url       text;
+alter table public.scans add column if not exists raw_ingredients text;
+alter table public.scans add column if not exists analysis        jsonb;
+alter table public.scans add column if not exists overall_grade   char(1);
+alter table public.scans add column if not exists created_at      timestamptz not null default now();
 
 alter table public.scans enable row level security;
 
