@@ -1197,7 +1197,7 @@ function DisclaimerSection() {
             <strong className="text-white font-semibold">AI accuracy limitations.</strong>{" "}
             AI-generated ingredient analysis may be incomplete, incorrect, or out of date. Product
             formulations change. Regulatory classifications vary by country. Surfelt makes no
-            warranty — express or implied — about the accuracy, completeness, or fitness for any
+            warranty, express or implied, about the accuracy, completeness, or fitness for any
             purpose of the information provided. Use of this service is at your own risk.
           </p>
           <p>
