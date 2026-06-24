@@ -229,16 +229,16 @@ export function ScanCard({ scan }: { scan: Scan }) {
               overflow: 'hidden',
               transition: 'box-shadow 0.15s ease, transform 0.15s ease',
               cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.09), 0 1px 4px rgba(0,0,0,0.05)',
+              boxShadow: '0 6px 28px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.07)',
             }}
             onMouseEnter={e => {
               const el = e.currentTarget as HTMLDivElement
-              el.style.boxShadow = '0 12px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.07)'
+              el.style.boxShadow = '0 16px 48px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.09)'
               el.style.transform = 'translateY(-2px)'
             }}
             onMouseLeave={e => {
               const el = e.currentTarget as HTMLDivElement
-              el.style.boxShadow = '0 4px 20px rgba(0,0,0,0.09), 0 1px 4px rgba(0,0,0,0.05)'
+              el.style.boxShadow = '0 6px 28px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.07)'
               el.style.transform = 'none'
             }}
           >

@@ -6,7 +6,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
-  const intent = searchParams.get('intent') // 'signup' | 'signin' | null
+
+  const cookieStore = await cookies()
+  // Intent can arrive via query param OR cookie (Supabase may strip query params from redirectTo)
+  const intent = searchParams.get('intent') || cookieStore.get('oauth_intent')?.value || null
 
   const forwardedHost = request.headers.get('x-forwarded-host')
   const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'
@@ -17,8 +20,6 @@ export async function GET(request: Request) {
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`)
   }
-
-  const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

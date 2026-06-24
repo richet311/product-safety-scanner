@@ -400,7 +400,7 @@ export default function ScannerPage() {
           border: 1px solid #e9eef4;
           padding: 20px;
           margin-bottom: 14px;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+          box-shadow: 0 6px 28px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.06);
         }
         @media (min-width: 640px) {
           .scan-card { padding: 24px; }
@@ -507,7 +507,7 @@ export default function ScannerPage() {
           <div style={{
             padding: '28px 24px', borderRadius: '20px', background: '#fff',
             border: '1px solid #e9eef4', textAlign: 'center',
-            boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
+            boxShadow: '0 6px 28px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.06)',
           }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.9s linear infinite', marginBottom: '14px' }}>
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -680,7 +680,7 @@ function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis
   const userAlerts = analysis.user_alerts ?? []
 
   return (
-    <div style={{ marginTop: '20px', background: '#fff', borderRadius: '20px', border: '1px solid #e9eef4', overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>
+    <div style={{ marginTop: '20px', background: '#fff', borderRadius: '20px', border: '1px solid #e9eef4', overflow: 'hidden', boxShadow: '0 6px 28px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.06)' }}>
       <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '14px' }}>
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 800, color: cfg.color, flexShrink: 0 }}>
           {analysis.overall_grade}

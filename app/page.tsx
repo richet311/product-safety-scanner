@@ -653,7 +653,7 @@ async function Navbar() {
             ) : (
               <>
                 <a
-                  href="/login"
+                  href="/login?mode=signup"
                   className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors duration-150"
                 >
                   Sign Up
@@ -705,7 +705,7 @@ async function Navbar() {
             <NavAuthMobile avatarUrl={avatarUrl} email={email} />
           ) : (
             <>
-              <a href="/login" className="block py-3 text-base font-semibold text-gray-700 hover:text-gray-900 border-b border-gray-100">
+              <a href="/login?mode=signup" className="block py-3 text-base font-semibold text-gray-700 hover:text-gray-900 border-b border-gray-100">
                 Sign Up
               </a>
               <a href="/login" className="block py-3 text-base font-semibold hover:opacity-90" style={{ color: "#00C37A" }}>

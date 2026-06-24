@@ -93,6 +93,8 @@ function LoginPageInner() {
   async function signInWithGoogle() {
     setLoading(true)
     setError(null)
+    // Store intent in a cookie — query params on redirectTo can be stripped by Supabase
+    document.cookie = `oauth_intent=${mode}; path=/; max-age=600; SameSite=Lax`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback?intent=${mode}` },
