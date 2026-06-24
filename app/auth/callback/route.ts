@@ -8,8 +8,7 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/dashboard'
 
   const cookieStore = await cookies()
-  // Intent can arrive via query param OR cookie (Supabase may strip query params from redirectTo)
-  const intent = searchParams.get('intent') || cookieStore.get('oauth_intent')?.value || null
+  const intent = cookieStore.get('oauth_intent')?.value ?? null
 
   const forwardedHost = request.headers.get('x-forwarded-host')
   const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'

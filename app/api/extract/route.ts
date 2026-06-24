@@ -107,7 +107,7 @@ async function lookupBarcode(barcode: string) {
   }
 
   return NextResponse.json(
-    { error: 'Product not found. Try the Photo tab — take a photo of the ingredient label.', barcode },
+    { error: 'Product not found. Try the Photo tab. Take a photo of the ingredient label.', barcode },
     { status: 404 }
   )
 }

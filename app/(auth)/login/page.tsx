@@ -90,16 +90,12 @@ function LoginPageInner() {
   const [mfaVerifying, setMfaVerifying] = useState(false)
   const supabase = createClient()
 
-  async function signInWithGoogle() {
+  function signInWithGoogle() {
     setLoading(true)
     setError(null)
-    // Store intent in a cookie — query params on redirectTo can be stripped by Supabase
-    document.cookie = `oauth_intent=${mode}; path=/; max-age=600; SameSite=Lax`
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?intent=${mode}` },
-    })
-    if (error) { setError(error.message); setLoading(false) }
+    // Route handler sets the intent cookie server-side and initiates the OAuth redirect,
+    // so the cookie is guaranteed to be present when the callback fires
+    window.location.href = `/api/auth/google?intent=${mode}`
   }
 
   async function handleSubmit(e: React.FormEvent) {
