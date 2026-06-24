@@ -6,6 +6,23 @@ import type { Scan } from './ScanCard'
 
 const DAILY_LIMIT = Number(process.env.DAILY_SCAN_LIMIT ?? 20)
 
+function getGroup(created_at: string): string {
+  const now = new Date()
+  const date = new Date(created_at)
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000)
+  const weekStart = new Date(todayStart.getTime() - 6 * 86400000)
+  const monthStart = new Date(todayStart.getTime() - 29 * 86400000)
+
+  if (date >= todayStart) return 'Today'
+  if (date >= yesterdayStart) return 'Yesterday'
+  if (date >= weekStart) return 'This Week'
+  if (date >= monthStart) return 'This Month'
+  return 'Older'
+}
+
+const GROUP_ORDER = ['Today', 'Yesterday', 'This Week', 'This Month', 'Older']
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,7 +37,7 @@ export default async function DashboardPage() {
       .select('id, product_name, image_url, overall_grade, analysis, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(50),
+      .limit(200),
     supabase
       .from('scan_events')
       .select('*', { count: 'exact', head: true })
@@ -40,6 +57,17 @@ export default async function DashboardPage() {
     ? gradeLetters[4 - Math.round(scans.reduce((s, sc) => s + gradeScore[sc.overall_grade as keyof typeof gradeScore], 0) / scans.length)]
     : null
   const concernCount = scans.filter(s => s.overall_grade === 'C' || s.overall_grade === 'D').length
+
+  // Group scans by time period
+  const grouped: Record<string, Scan[]> = {}
+  for (const scan of scans) {
+    const g = getGroup(scan.created_at)
+    if (!grouped[g]) grouped[g] = []
+    grouped[g].push(scan)
+  }
+  const groups = GROUP_ORDER.filter(g => grouped[g]?.length > 0)
+
+  const todayScans = grouped['Today'] ?? []
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
@@ -95,10 +123,28 @@ export default async function DashboardPage() {
             ? 'linear-gradient(90deg, #f97316, #ef4444)'
             : 'linear-gradient(90deg, #00C37A, #00e896)'};
         }
+
+        .group-label {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+          color: #94a3b8;
+          margin: 0 0 14px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .group-label::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: #f1f5f9;
+        }
       `}</style>
 
       <div className="dashboard-wrap">
-        <div style={{ marginBottom: '32px' }}>
+        <div style={{ marginBottom: '28px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{
@@ -135,7 +181,7 @@ export default async function DashboardPage() {
         {scans.length > 0 && (
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px', marginBottom: '28px',
+            gap: '12px', marginBottom: '32px',
           }}>
             {[
               { label: 'Total Scans', value: String(scans.length), sub: 'products analyzed' },
@@ -195,10 +241,41 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="scan-grid">
-            {scans.map(scan => (
-              <ScanCard key={scan.id} scan={scan} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {groups.map(group => (
+              <div key={group}>
+                <p className="group-label">
+                  {group === 'Today'
+                    ? todayScans.length > 0
+                      ? `Today · ${todayScans.length} scan${todayScans.length !== 1 ? 's' : ''}`
+                      : 'Today · No scans yet'
+                    : group}
+                </p>
+                <div className="scan-grid">
+                  {grouped[group].map(scan => (
+                    <ScanCard key={scan.id} scan={scan} />
+                  ))}
+                </div>
+              </div>
             ))}
+
+            {todayScans.length === 0 && (
+              <div>
+                <p className="group-label">Today · No scans yet</p>
+                <div style={{
+                  padding: '24px', borderRadius: '16px',
+                  background: '#fff', border: '1.5px dashed #e2e8f0',
+                  textAlign: 'center',
+                }}>
+                  <p style={{ margin: '0 0 12px', fontSize: '13.5px', color: '#94a3b8' }}>
+                    You haven't scanned anything today.
+                  </p>
+                  <Link href="/scanner" className="new-scan-btn" style={{ padding: '8px 18px', fontSize: '13px' }}>
+                    Scan Now
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

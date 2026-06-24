@@ -120,9 +120,6 @@ ${ingredients}`,
     return NextResponse.json({ error: 'Analysis failed. Please try again.' }, { status: 502 })
   }
 
-  const { error: eventError } = await supabase.from('scan_events').insert({ user_id: user.id })
-  if (eventError) console.error('[scan] scan_events insert failed:', eventError.message)
-
   const safeGrade = (analysis.overall_grade?.toUpperCase() ?? 'B') as 'A' | 'B' | 'C' | 'D'
   if (!['A', 'B', 'C', 'D'].includes(safeGrade)) {
     console.error('[scan] unexpected grade from AI:', analysis.overall_grade)
@@ -141,12 +138,18 @@ ${ingredients}`,
     .select('id')
     .single()
 
-  if (scanError) console.error('[scan] insert failed:', scanError.message)
+  if (scanError) {
+    console.error('[scan] insert failed:', scanError.message)
+  } else {
+    // Only count usage when the scan was actually saved
+    const { error: eventError } = await supabase.from('scan_events').insert({ user_id: user.id })
+    if (eventError) console.error('[scan] scan_events insert failed:', eventError.message)
+  }
 
   return NextResponse.json({
     id: scanData?.id,
     analysis,
-    scans_today: (count ?? 0) + 1,
+    scans_today: scanData ? (count ?? 0) + 1 : (count ?? 0),
     daily_limit: DAILY_LIMIT,
     ...(scanError ? { _save_error: scanError.message } : {}),
   })
