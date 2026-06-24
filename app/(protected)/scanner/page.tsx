@@ -182,6 +182,22 @@ export default function ScannerPage() {
       })
       const json = await res.json()
 
+      // Vision found the product name but not the ingredient list — try a database lookup
+      if (!json.ingredients && json.product_name) {
+        setExtractState({ status: 'loading', message: `Looking up "${json.product_name}"…` })
+        const lookupRes = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_name: json.product_name }),
+        })
+        const lookupJson = await lookupRes.json()
+        if (lookupRes.ok && lookupJson.ingredients) {
+          setExtractState({ status: 'loading', message: 'Analyzing ingredients…' })
+          await runAnalysis(lookupJson.product_name ?? json.product_name, lookupJson.ingredients, file, lookupJson.product_image_url)
+          return
+        }
+      }
+
       if (!res.ok || !json.ingredients) {
         setExtractState({ status: 'error', message: json.error ?? "Couldn't read the ingredient list. Make sure the label is in focus and try again." })
         return

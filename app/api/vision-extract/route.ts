@@ -70,6 +70,7 @@ Instructions:
         {
           error:
             "Couldn't read the ingredient list from this photo. Make sure the label is in focus and well-lit, then try again.",
+          product_name: result.product_name ?? null,
         },
         { status: 404 }
       )
