@@ -25,7 +25,6 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Rate limit — gracefully skip if tables not set up yet
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -35,16 +34,13 @@ export async function POST(request: Request) {
     .eq('user_id', user.id)
     .gte('created_at', today.toISOString())
 
-  if (countError) {
-    console.error('[scan] rate-limit query failed (tables may not exist yet):', countError.message)
-  } else if ((count ?? 0) >= DAILY_LIMIT) {
+  if (!countError && (count ?? 0) >= DAILY_LIMIT) {
     return NextResponse.json(
       { error: `Daily scan limit of ${DAILY_LIMIT} reached. Try again tomorrow.` },
       { status: 429 }
     )
   }
 
-  // Parse body
   let ingredients: string
   let productName: string | undefined
   let imageUrl: string | undefined
@@ -60,7 +56,6 @@ export async function POST(request: Request) {
   if (!ingredients) return NextResponse.json({ error: 'ingredients is required' }, { status: 400 })
   if (ingredients.length > 4000) return NextResponse.json({ error: 'Ingredients text too long (max 4000 chars)' }, { status: 400 })
 
-  // AI analysis via Groq — Llama 3.3 70B, free tier (14,400 req/day)
   let analysis: ScanAnalysis
   try {
     const completion = await groq.chat.completions.create({
@@ -89,18 +84,16 @@ ${ingredients}`,
     })
 
     const content = completion.choices[0]?.message?.content
-    if (!content) throw new Error('Empty response from Groq')
+    if (!content) throw new Error('Empty response')
     analysis = JSON.parse(content) as ScanAnalysis
   } catch (err) {
-    console.error('[scan] AI analysis failed:', err)
+    console.error('[scan] analysis failed:', err)
     return NextResponse.json({ error: 'Analysis failed. Please try again.' }, { status: 502 })
   }
 
-  // Persist scan event (immutable — no user DELETE policy, keeps rate-limit tamper-proof)
   const { error: eventError } = await supabase.from('scan_events').insert({ user_id: user.id })
   if (eventError) console.error('[scan] scan_events insert failed:', eventError.message)
 
-  // Persist scan result
   const { data: scanData, error: scanError } = await supabase
     .from('scans')
     .insert({
@@ -114,7 +107,7 @@ ${ingredients}`,
     .select('id')
     .single()
 
-  if (scanError) console.error('[scan] scans insert failed:', scanError.message)
+  if (scanError) console.error('[scan] insert failed:', scanError.message)
 
   return NextResponse.json({
     id: scanData?.id,

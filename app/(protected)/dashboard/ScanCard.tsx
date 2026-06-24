@@ -27,7 +27,7 @@ const GRADE = {
 
 export function ScanCard({ scan }: { scan: Scan }) {
   const g = GRADE[scan.overall_grade]
-  const ingredientCount = scan.analysis?.ingredients?.length ?? 0
+  const concerns = scan.analysis?.ingredients?.filter(i => !i.safe).length ?? 0
   const date = new Date(scan.created_at)
 
   return (
@@ -35,16 +35,16 @@ export function ScanCard({ scan }: { scan: Scan }) {
       <div
         style={{
           background: '#fff',
-          borderRadius: '16px',
+          borderRadius: '20px',
           border: '1px solid #f1f5f9',
-          padding: '16px 18px',
+          overflow: 'hidden',
           transition: 'box-shadow 0.15s ease, transform 0.15s ease',
           cursor: 'pointer',
         }}
         onMouseEnter={e => {
           const el = e.currentTarget as HTMLDivElement
-          el.style.boxShadow = '0 4px 20px rgba(0,0,0,0.09)'
-          el.style.transform = 'translateY(-1px)'
+          el.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)'
+          el.style.transform = 'translateY(-2px)'
         }}
         onMouseLeave={e => {
           const el = e.currentTarget as HTMLDivElement
@@ -52,83 +52,69 @@ export function ScanCard({ scan }: { scan: Scan }) {
           el.style.transform = 'none'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-          <div style={{
-            width: 40, height: 40,
-            borderRadius: '12px',
-            background: g.bg,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', fontWeight: 800,
-            color: g.color,
-            flexShrink: 0,
-          }}>
-            {scan.overall_grade}
-          </div>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: '15px', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {scan.product_name ?? 'Unknown Product'}
-              </p>
-              <span style={{
-                flexShrink: 0,
-                fontSize: '11.5px',
-                fontWeight: 700,
-                padding: '3px 10px',
-                borderRadius: '20px',
-                background: g.bg,
-                color: g.text,
-              }}>
-                {g.label}
-              </span>
-            </div>
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {scan.analysis?.summary}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                {ingredientCount} ingredient{ingredientCount !== 1 ? 's' : ''}
-              </span>
-              <span style={{ color: '#e2e8f0', fontSize: '12px' }}>·</span>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-              </span>
-            </div>
-          </div>
-
-          {scan.image_url && (
+        {scan.image_url ? (
+          <div style={{ position: 'relative', height: '160px', overflow: 'hidden' }}>
             <img
               src={scan.image_url}
-              alt=""
-              style={{ width: 52, height: 52, borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
+              alt={scan.product_name ?? 'Product'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
-          )}
-        </div>
-
-        {(scan.analysis?.ingredients?.length ?? 0) > 0 && (
-          <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-            {scan.analysis.ingredients.slice(0, 7).map((ing, i) => (
-              <span
-                key={i}
-                style={{
-                  fontSize: '11.5px',
-                  padding: '2px 9px',
-                  borderRadius: '20px',
-                  background: GRADE[ing.grade]?.bg ?? '#f3f4f6',
-                  color: GRADE[ing.grade]?.text ?? '#374151',
-                  fontWeight: 500,
-                }}
-              >
-                {ing.name}
-              </span>
-            ))}
-            {scan.analysis.ingredients.length > 7 && (
-              <span style={{ fontSize: '11.5px', padding: '2px 9px', borderRadius: '20px', background: '#f1f5f9', color: '#64748b' }}>
-                +{scan.analysis.ingredients.length - 7} more
-              </span>
-            )}
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.55) 100%)',
+            }} />
+            <div style={{
+              position: 'absolute', top: 12, right: 12,
+              width: 40, height: 40, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.95)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '17px', fontWeight: 800, color: g.color,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}>
+              {scan.overall_grade}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            height: '100px',
+            background: g.bg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%',
+              background: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '24px', fontWeight: 800, color: g.color,
+              boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+            }}>
+              {scan.overall_grade}
+            </div>
           </div>
         )}
+
+        <div style={{ padding: '14px 16px 16px' }}>
+          <p style={{
+            margin: '0 0 4px', fontWeight: 700, fontSize: '15px', color: '#0f172a',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {scan.product_name ?? 'Unknown Product'}
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{
+              fontSize: '12px', fontWeight: 700,
+              padding: '2px 10px', borderRadius: '20px',
+              background: g.bg, color: g.text,
+            }}>
+              {g.label}
+            </span>
+            <span style={{ fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+              {concerns > 0 ? `${concerns} concern${concerns !== 1 ? 's' : ''}` : 'No concerns'}
+            </span>
+          </div>
+          <p style={{ margin: '8px 0 0', fontSize: '11.5px', color: '#cbd5e1' }}>
+            {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          </p>
+        </div>
       </div>
     </Link>
   )

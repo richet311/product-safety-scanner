@@ -609,7 +609,7 @@ async function Navbar() {
     const { data } = await supabase.auth.getUser();
     user = data.user;
   } catch {
-    // Supabase not configured yet — degrade gracefully
+    // ignore — user stays null and nav shows login links
   }
 
   const avatarUrl = (user?.user_metadata as { avatar_url?: string } | undefined)?.avatar_url;

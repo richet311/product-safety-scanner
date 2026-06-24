@@ -28,7 +28,6 @@ export async function POST(request: Request) {
 }
 
 async function lookupBarcode(barcode: string) {
-  // 1. Open Food Facts — best coverage for food and cosmetics
   try {
     const res = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
@@ -47,7 +46,6 @@ async function lookupBarcode(barcode: string) {
     }
   } catch {}
 
-  // 2. UPC Item DB — covers medicines, cleaning products, and general retail
   try {
     const res = await fetch(
       `https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(barcode)}`,
@@ -100,10 +98,7 @@ async function searchProductByName(query: string) {
   } catch {}
 
   return NextResponse.json(
-    {
-      error: `Couldn't find "${query}" in our database. Try scanning the barcode instead.`,
-      product_name: query,
-    },
+    { error: `Couldn't find "${query}" in our database. Try scanning the barcode instead.`, product_name: query },
     { status: 404 }
   )
 }

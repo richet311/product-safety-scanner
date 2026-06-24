@@ -98,7 +98,6 @@ export default function CameraCapture({ onCapture, onClose, mode = 'label', onBa
       rafId = requestAnimationFrame(scan)
       return () => { cancelled = true; cancelAnimationFrame(rafId) }
     } else {
-      // ZXing fallback — works on iOS Safari and all other browsers
       let zxingControls: { stop: () => void } | null = null
       import('@zxing/browser').then(({ BrowserMultiFormatReader }) => {
         if (cancelled) return
