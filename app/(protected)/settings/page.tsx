@@ -308,8 +308,8 @@ export default function SettingsPage() {
       `}</style>
 
       <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '30px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px', letterSpacing: '-0.3px', lineHeight: 1.2 }}>Settings</h1>
-        <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0, fontFamily: 'inherit' }}>Personalize your safety analysis with your health profile.</p>
+        <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '30px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px', letterSpacing: '-0.3px', lineHeight: 1.2 }}>My Profile</h1>
+        <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0, fontFamily: 'inherit' }}>Your health profile personalizes every scan to flag ingredients that affect you specifically.</p>
       </div>
 
       <form onSubmit={handleSave}>

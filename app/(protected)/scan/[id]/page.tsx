@@ -7,6 +7,7 @@ type Ingredient = {
   grade: 'A' | 'B' | 'C' | 'D'
   concern: string | null
   safe: boolean
+  flagged?: boolean
 }
 
 type Scan = {
@@ -14,7 +15,7 @@ type Scan = {
   product_name: string | null
   image_url: string | null
   overall_grade: 'A' | 'B' | 'C' | 'D'
-  analysis: { summary: string; ingredients: Ingredient[] }
+  analysis: { summary: string; ingredients: Ingredient[]; user_alerts?: string[] }
   created_at: string
 }
 
@@ -73,6 +74,7 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
   const cfg = GRADE[scan.overall_grade]
   const concerns = scan.analysis?.ingredients?.filter(i => !i.safe).length ?? 0
   const ingredientCount = scan.analysis?.ingredients?.length ?? 0
+  const userAlerts = scan.analysis?.user_alerts ?? []
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
@@ -153,6 +155,21 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
+          {userAlerts.length > 0 && (
+            <div style={{ margin: '0 22px 16px', padding: '13px 16px', borderRadius: '14px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.09em', color: '#ef4444', textTransform: 'uppercase' }}>
+                Personal Alerts
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                {userAlerts.map((alert, i) => (
+                  <p key={i} style={{ margin: 0, fontSize: '13px', color: '#b91c1c', fontWeight: 600, lineHeight: 1.5 }}>
+                    ⚠ {alert}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
           {scan.analysis?.summary && (
             <div style={{ margin: '0 22px 16px', padding: '13px 16px', borderRadius: '14px', background: '#f8fafc', fontSize: '13.5px', color: '#475569', lineHeight: 1.7 }}>
               {scan.analysis.summary}
@@ -169,17 +186,30 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
               {scan.analysis?.ingredients?.map((ing, i) => {
                 const ic = GRADE[ing.grade]
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '12px',
+                    padding: ing.flagged ? '10px 12px' : '0',
+                    borderRadius: ing.flagged ? '12px' : '0',
+                    background: ing.flagged ? 'rgba(239,68,68,0.05)' : 'transparent',
+                    border: ing.flagged ? '1px solid rgba(239,68,68,0.15)' : 'none',
+                  }}>
                     <div style={{
                       width: 32, height: 32, borderRadius: '50%',
-                      background: ic.bg,
+                      background: ing.flagged ? 'rgba(239,68,68,0.12)' : ic.bg,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '12px', fontWeight: 800, color: ic.color, flexShrink: 0,
+                      fontSize: '12px', fontWeight: 800, color: ing.flagged ? '#ef4444' : ic.color, flexShrink: 0,
                     }}>
-                      {ing.grade}
+                      {ing.flagged ? '!' : ing.grade}
                     </div>
                     <div style={{ flex: 1, paddingTop: '5px' }}>
-                      <p style={{ margin: 0, fontSize: '14.5px', fontWeight: 600, color: '#0f172a' }}>{ing.name}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <p style={{ margin: 0, fontSize: '14.5px', fontWeight: 600, color: ing.flagged ? '#b91c1c' : '#0f172a' }}>{ing.name}</p>
+                        {ing.flagged && (
+                          <span style={{ fontSize: '10px', fontWeight: 800, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 7px', borderRadius: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            Personal Alert
+                          </span>
+                        )}
+                      </div>
                       {ing.concern && (
                         <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: '#94a3b8', lineHeight: 1.5 }}>{ing.concern}</p>
                       )}

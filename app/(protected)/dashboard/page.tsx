@@ -34,6 +34,13 @@ export default async function DashboardPage() {
   const atLimit = todayCount >= DAILY_LIMIT
   const usagePct = Math.min((todayCount / DAILY_LIMIT) * 100, 100)
 
+  const gradeScore = { A: 4, B: 3, C: 2, D: 1 } as const
+  const gradeLetters = ['A', 'B', 'C', 'D'] as const
+  const avgGrade: 'A' | 'B' | 'C' | 'D' | null = scans.length > 0
+    ? gradeLetters[4 - Math.round(scans.reduce((s, sc) => s + gradeScore[sc.overall_grade as keyof typeof gradeScore], 0) / scans.length)]
+    : null
+  const concernCount = scans.filter(s => s.overall_grade === 'C' || s.overall_grade === 'D').length
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       <style>{`
@@ -124,6 +131,39 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {scans.length > 0 && (
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '12px', marginBottom: '28px',
+          }}>
+            {[
+              { label: 'Total Scans', value: String(scans.length), sub: 'products analyzed' },
+              {
+                label: 'Avg Safety Grade',
+                value: avgGrade ?? '—',
+                sub: avgGrade === 'A' ? 'Very Safe' : avgGrade === 'B' ? 'Generally Safe' : avgGrade === 'C' ? 'Use Caution' : avgGrade === 'D' ? 'Potentially Harmful' : '',
+                color: avgGrade === 'A' ? '#00C37A' : avgGrade === 'B' ? '#EAB308' : avgGrade === 'C' ? '#F97316' : '#EF4444',
+              },
+              {
+                label: 'Needs Attention',
+                value: concernCount === 0 ? '✓' : String(concernCount),
+                sub: concernCount === 0 ? 'all products safe' : `product${concernCount !== 1 ? 's' : ''} graded C or D`,
+                color: concernCount === 0 ? '#00C37A' : '#EF4444',
+              },
+            ].map(stat => (
+              <div key={stat.label} style={{
+                background: '#fff', borderRadius: '16px', border: '1px solid #f1f5f9',
+                padding: '16px 18px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+              }}>
+                <p style={{ margin: '0 0 4px', fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.07em', color: '#94a3b8', textTransform: 'uppercase' }}>{stat.label}</p>
+                <p style={{ margin: '0 0 2px', fontSize: '26px', fontWeight: 800, color: (stat as any).color ?? '#0f172a', letterSpacing: '-0.5px', lineHeight: 1 }}>{stat.value}</p>
+                <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', fontWeight: 500 }}>{stat.sub}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {scans.length === 0 ? (
           <div style={{

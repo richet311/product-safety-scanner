@@ -11,12 +11,14 @@ type IngredientAnalysis = {
   grade: 'A' | 'B' | 'C' | 'D'
   concern: string | null
   safe: boolean
+  flagged?: boolean
 }
 
 type ScanAnalysis = {
   overall_grade: 'A' | 'B' | 'C' | 'D'
   summary: string
   ingredients: IngredientAnalysis[]
+  user_alerts?: string[]
 }
 
 export async function POST(request: Request) {
@@ -56,6 +58,30 @@ export async function POST(request: Request) {
   if (!ingredients) return NextResponse.json({ error: 'ingredients is required' }, { status: 400 })
   if (ingredients.length > 4000) return NextResponse.json({ error: 'Ingredients text too long (max 4000 chars)' }, { status: 400 })
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('allergies, dietary_preferences, health_conditions, age')
+    .eq('id', user.id)
+    .single()
+
+  const profileLines: string[] = []
+  if (profile?.allergies?.length) {
+    profileLines.push(`Allergies/intolerances (mark matching ingredients flagged=true and safe=false): ${profile.allergies.join(', ')}`)
+  }
+  if (profile?.dietary_preferences?.length) {
+    profileLines.push(`Dietary preferences (flag ingredients incompatible with these): ${profile.dietary_preferences.join(', ')}`)
+  }
+  if (profile?.health_conditions?.length) {
+    profileLines.push(`Health conditions (flag ingredients that may aggravate these): ${profile.health_conditions.join(', ')}`)
+  }
+  if (profile?.age) {
+    profileLines.push(`User age: ${profile.age}`)
+  }
+
+  const profileSection = profileLines.length > 0
+    ? `\nUser health profile — personalize the analysis for this person:\n${profileLines.join('\n')}\n`
+    : ''
+
   let analysis: ScanAnalysis
   try {
     const completion = await groq.chat.completions.create({
@@ -66,7 +92,7 @@ export async function POST(request: Request) {
           content: `Analyze these product ingredients for safety. Return ONLY valid JSON.
 
 Schema:
-{"overall_grade":"A"|"B"|"C"|"D","summary":"1-2 sentence safety assessment","ingredients":[{"name":"ingredient name","grade":"A"|"B"|"C"|"D","concern":"brief concern or null","safe":true|false}]}
+{"overall_grade":"A"|"B"|"C"|"D","summary":"1-2 sentence safety assessment","ingredients":[{"name":"ingredient name","grade":"A"|"B"|"C"|"D","concern":"brief concern or null","safe":true|false,"flagged":false}],"user_alerts":[]}
 
 Grading scale:
 A = very safe, well-studied, no concerns
@@ -74,12 +100,15 @@ B = generally safe, minor concerns for some people
 C = use with caution, some studies show concerns
 D = potentially harmful, avoid if possible
 
+"flagged" means the ingredient directly conflicts with the user's allergies, dietary preferences, or health conditions.
+"user_alerts" is an array of short personal warning strings (e.g. "Contains Dairy — you are lactose intolerant"). Leave empty [] if no profile or no conflicts.
+${profileSection}
 Ingredients list:
 ${ingredients}`,
         },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.1,
+      temperature: 0,
       max_tokens: 4096,
     })
 

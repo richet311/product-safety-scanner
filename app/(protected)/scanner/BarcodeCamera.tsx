@@ -36,7 +36,12 @@ export default function BarcodeCamera({ onDetected, onUnsupported }: Props) {
       .then((codes: any[]) => {
         if (codes.length > 0 && !foundRef.current) {
           foundRef.current = true
-          stop()
+          // Manually clean up without calling stop() — stop() resets foundRef which
+          // would allow a stale promise to re-fire onDetected a second time.
+          cancelAnimationFrame(rafRef.current)
+          streamRef.current?.getTracks().forEach(t => t.stop())
+          streamRef.current = null
+          setActive(false)
           onDetected(codes[0].rawValue)
         } else {
           rafRef.current = requestAnimationFrame(scan)

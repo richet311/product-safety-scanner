@@ -19,11 +19,13 @@ type IngredientResult = {
   grade: 'A' | 'B' | 'C' | 'D'
   concern: string | null
   safe: boolean
+  flagged?: boolean
 }
 type AnalysisResult = {
   overall_grade: 'A' | 'B' | 'C' | 'D'
   summary: string
   ingredients: IngredientResult[]
+  user_alerts?: string[]
 }
 
 const GRADE_CFG = {
@@ -640,6 +642,7 @@ function InlineResult({ result, onReset }: { result: { analysis: AnalysisResult;
   const { analysis, productName } = result
   const cfg = GRADE_CFG[analysis.overall_grade]
   const concerns = analysis.ingredients.filter(i => !i.safe).length
+  const userAlerts = analysis.user_alerts ?? []
 
   return (
     <div style={{ marginTop: '20px', background: '#fff', borderRadius: '20px', border: '1px solid #e9eef4', overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>
@@ -654,8 +657,17 @@ function InlineResult({ result, onReset }: { result: { analysis: AnalysisResult;
         </div>
       </div>
 
+      {userAlerts.length > 0 && (
+        <div style={{ margin: '0 20px 0', padding: '12px 14px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px', marginTop: '14px' }}>
+          <p style={{ margin: '0 0 6px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.09em', color: '#ef4444', textTransform: 'uppercase' }}>Personal Alerts</p>
+          {userAlerts.map((alert, i) => (
+            <p key={i} style={{ margin: 0, fontSize: '12.5px', color: '#b91c1c', fontWeight: 600, lineHeight: 1.5 }}>⚠ {alert}</p>
+          ))}
+        </div>
+      )}
+
       {analysis.summary && (
-        <div style={{ padding: '14px 20px', background: '#f8fafc', fontSize: '13.5px', color: '#475569', lineHeight: 1.65 }}>
+        <div style={{ padding: '14px 20px', background: '#f8fafc', fontSize: '13.5px', color: '#475569', lineHeight: 1.65, marginTop: userAlerts.length > 0 ? '14px' : 0 }}>
           {analysis.summary}
         </div>
       )}
@@ -666,12 +678,21 @@ function InlineResult({ result, onReset }: { result: { analysis: AnalysisResult;
           {analysis.ingredients.map((ing, i) => {
             const ic = GRADE_CFG[ing.grade]
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: ic.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: ic.color, flexShrink: 0 }}>
-                  {ing.grade}
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: '10px',
+                padding: ing.flagged ? '8px 10px' : '0',
+                borderRadius: ing.flagged ? '10px' : '0',
+                background: ing.flagged ? 'rgba(239,68,68,0.05)' : 'transparent',
+                border: ing.flagged ? '1px solid rgba(239,68,68,0.15)' : 'none',
+              }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: ing.flagged ? 'rgba(239,68,68,0.12)' : ic.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: ing.flagged ? '#ef4444' : ic.color, flexShrink: 0 }}>
+                  {ing.flagged ? '!' : ing.grade}
                 </div>
                 <div style={{ flex: 1, paddingTop: '4px' }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{ing.name}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: ing.flagged ? '#b91c1c' : '#0f172a' }}>{ing.name}</p>
+                    {ing.flagged && <span style={{ fontSize: '9px', fontWeight: 800, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: '5px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Alert</span>}
+                  </div>
                   {ing.concern && <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>{ing.concern}</p>}
                 </div>
               </div>
