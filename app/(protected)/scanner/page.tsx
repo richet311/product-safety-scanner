@@ -10,7 +10,7 @@ const CameraCapture = dynamic(() => import('./CameraCapture'), { ssr: false })
 type Tab = 'barcode' | 'label'
 type ExtractState =
   | { status: 'idle' }
-  | { status: 'loading'; message: string }
+  | { status: 'loading'; message: string; step?: number; totalSteps?: number }
   | { status: 'success'; message: string }
   | { status: 'error'; message: string }
 
@@ -70,7 +70,7 @@ export default function ScannerPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [inlineResult, setInlineResult] = useState<{ analysis: AnalysisResult; productName: string } | null>(null)
+  const [inlineResult, setInlineResult] = useState<{ analysis: AnalysisResult; productName: string; saveError?: string } | null>(null)
   const [captureMode, setCaptureMode] = useState<'barcode' | 'label' | null>(null)
   const captureModeRef = useRef<'barcode' | 'label' | null>(null)
   captureModeRef.current = captureMode
@@ -96,6 +96,7 @@ export default function ScannerPage() {
     let imageUrl: string | undefined = offImageUrl ?? undefined
 
     if (file) {
+      setExtractState({ status: 'loading', message: 'Uploading photo…', step: 1, totalSteps: 3 })
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const ext = file.name.split('.').pop() ?? 'jpg'
@@ -109,6 +110,8 @@ export default function ScannerPage() {
         }
       }
     }
+
+    setExtractState({ status: 'loading', message: 'Analyzing ingredients…', step: file ? 2 : 1, totalSteps: file ? 3 : 2 })
 
     const res = await fetch('/api/scan', {
       method: 'POST',
@@ -127,10 +130,16 @@ export default function ScannerPage() {
       return
     }
 
+    setExtractState({ status: 'loading', message: 'Saving to history…', step: file ? 3 : 2, totalSteps: file ? 3 : 2 })
+
+    if (json._save_error) {
+      console.error('[scanner] scan save error:', json._save_error)
+    }
+
     if (json.id) {
       window.location.href = `/scan/${json.id}`
     } else {
-      setInlineResult({ analysis: json.analysis, productName: productName || 'Product Analysis' })
+      setInlineResult({ analysis: json.analysis, productName: productName || 'Product Analysis', saveError: json._save_error })
       setLoading(false)
     }
   }
@@ -187,7 +196,7 @@ export default function ScannerPage() {
   }
 
   async function handleBarcodeDetected(barcode: string) {
-    setExtractState({ status: 'loading', message: `Looking up ${barcode}…` })
+    setExtractState({ status: 'loading', message: `Looking up barcode…`, step: 1, totalSteps: 2 })
     try {
       const res = await fetch('/api/extract', {
         method: 'POST',
@@ -199,7 +208,7 @@ export default function ScannerPage() {
         setExtractState({ status: 'error', message: json.error ?? 'Product not found. Try the Photo tab.' })
         return
       }
-      setExtractState({ status: 'loading', message: 'Analyzing ingredients…' })
+      setExtractState({ status: 'loading', message: 'Analyzing ingredients…', step: 2, totalSteps: 2 })
       await runAnalysis(json.product_name, json.ingredients, null, json.product_image_url)
     } catch {
       setExtractState({ status: 'error', message: 'Network error. Please try again.' })
@@ -497,14 +506,33 @@ export default function ScannerPage() {
 
         {loading && (
           <div style={{
-            padding: '28px', borderRadius: '20px', background: '#fff',
+            padding: '28px 24px', borderRadius: '20px', background: '#fff',
             border: '1px solid #e9eef4', textAlign: 'center',
             boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
           }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.9s linear infinite', marginBottom: '12px' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.9s linear infinite', marginBottom: '14px' }}>
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            <p style={{ margin: 0, fontSize: '14px', color: '#475569', fontWeight: 500 }}>Analyzing ingredients…</p>
+            {extractState.status === 'loading' && extractState.totalSteps && extractState.step ? (
+              <>
+                <p style={{ margin: '0 0 14px', fontSize: '14px', color: '#475569', fontWeight: 600 }}>{extractState.message}</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  {Array.from({ length: extractState.totalSteps }, (_, i) => (
+                    <div key={i} style={{
+                      width: i < extractState.step! ? 24 : 8,
+                      height: 6, borderRadius: '99px',
+                      background: i < extractState.step! ? '#00C37A' : '#e2e8f0',
+                      transition: 'all 0.35s ease',
+                    }} />
+                  ))}
+                </div>
+                <p style={{ margin: '10px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                  Step {extractState.step} of {extractState.totalSteps}
+                </p>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: '14px', color: '#475569', fontWeight: 500 }}>Analyzing ingredients…</p>
+            )}
           </div>
         )}
 
@@ -631,15 +659,15 @@ export default function ScannerPage() {
             setImagePreview(null)
             setImageFile(null)
             setExtractState({ status: 'idle' })
-          }} />
+          }} onViewDashboard={() => { window.location.href = '/dashboard' }} />
         )}
       </div>
     </div>
   )
 }
 
-function InlineResult({ result, onReset }: { result: { analysis: AnalysisResult; productName: string }; onReset: () => void }) {
-  const { analysis, productName } = result
+function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis: AnalysisResult; productName: string; saveError?: string }; onReset: () => void; onViewDashboard: () => void }) {
+  const { analysis, productName, saveError } = result
   const cfg = GRADE_CFG[analysis.overall_grade]
   const concerns = analysis.ingredients.filter(i => !i.safe).length
   const userAlerts = analysis.user_alerts ?? []
@@ -701,7 +729,20 @@ function InlineResult({ result, onReset }: { result: { analysis: AnalysisResult;
         </div>
       </div>
 
-      <div style={{ padding: '0 20px 18px' }}>
+      {saveError && (
+        <div style={{ margin: '0 20px 14px', padding: '10px 13px', borderRadius: '10px', background: '#fff7ed', border: '1px solid #fed7aa', fontSize: '12.5px', color: '#9a3412', lineHeight: 1.5 }}>
+          <strong>Note:</strong> This scan couldn't be saved to your history. ({saveError})
+        </div>
+      )}
+
+      <div style={{ padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button
+          type="button"
+          onClick={onViewDashboard}
+          style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #00C37A 0%, #00a868 100%)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+        >
+          View Dashboard
+        </button>
         <button
           type="button"
           onClick={onReset}

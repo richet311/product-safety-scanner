@@ -123,6 +123,11 @@ ${ingredients}`,
   const { error: eventError } = await supabase.from('scan_events').insert({ user_id: user.id })
   if (eventError) console.error('[scan] scan_events insert failed:', eventError.message)
 
+  const safeGrade = (analysis.overall_grade?.toUpperCase() ?? 'B') as 'A' | 'B' | 'C' | 'D'
+  if (!['A', 'B', 'C', 'D'].includes(safeGrade)) {
+    console.error('[scan] unexpected grade from AI:', analysis.overall_grade)
+  }
+
   const { data: scanData, error: scanError } = await supabase
     .from('scans')
     .insert({
@@ -130,7 +135,7 @@ ${ingredients}`,
       product_name: productName ?? null,
       raw_ingredients: ingredients,
       analysis,
-      overall_grade: analysis.overall_grade,
+      overall_grade: safeGrade,
       image_url: imageUrl ?? null,
     })
     .select('id')
@@ -143,5 +148,6 @@ ${ingredients}`,
     analysis,
     scans_today: (count ?? 0) + 1,
     daily_limit: DAILY_LIMIT,
+    ...(scanError ? { _save_error: scanError.message } : {}),
   })
 }
