@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
 
 const NAV = [
   {
@@ -48,6 +49,18 @@ export default function Sidebar({
   avatarUrl?: string
 }) {
   const pathname = usePathname()
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [dropdownOpen])
 
   return (
     <>
@@ -180,8 +193,72 @@ export default function Sidebar({
           ))}
         </div>
 
-        <div style={{ padding: '14px 10px', borderTop: '1px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '10px', padding: '0 2px' }}>
+        <div style={{ padding: '12px 10px', borderTop: '1px solid #f1f5f9', position: 'relative' }} ref={dropdownRef}>
+          {/* Dropdown menu — opens upward */}
+          {dropdownOpen && (
+            <div style={{
+              position: 'absolute', bottom: 'calc(100% + 6px)', left: '10px', right: '10px',
+              background: '#fff', border: '1px solid #e9eef4', borderRadius: '14px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 100,
+              overflow: 'hidden', padding: '6px',
+            }}>
+              <Link
+                href="/dashboard"
+                onClick={() => setDropdownOpen(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '9px', textDecoration: 'none', color: '#0f172a', fontSize: '13.5px', fontWeight: 500, transition: 'background 0.12s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                onMouseLeave={e => (e.currentTarget.style.background = '')}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                </svg>
+                Dashboard
+              </Link>
+              <Link
+                href="/settings"
+                onClick={() => setDropdownOpen(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '9px', textDecoration: 'none', color: '#0f172a', fontSize: '13.5px', fontWeight: 500, transition: 'background 0.12s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                onMouseLeave={e => (e.currentTarget.style.background = '')}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
+              </Link>
+              <div style={{ height: '1px', background: '#f1f5f9', margin: '4px 0' }} />
+              <form action="/api/auth/signout" method="POST">
+                <button
+                  type="submit"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '9px', border: 'none', background: 'none', color: '#ef4444', fontSize: '13.5px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#fff1f2')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  Sign out
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Avatar trigger button */}
+          <button
+            type="button"
+            onClick={() => setDropdownOpen(o => !o)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '9px',
+              padding: '7px 8px', borderRadius: '10px', border: 'none',
+              background: dropdownOpen ? 'rgba(0,195,122,0.08)' : 'none',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.13s',
+              textAlign: 'left',
+            }}
+            onMouseEnter={e => { if (!dropdownOpen) e.currentTarget.style.background = '#f8fafc' }}
+            onMouseLeave={e => { if (!dropdownOpen) e.currentTarget.style.background = '' }}
+          >
             {avatarUrl ? (
               <img src={avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
             ) : (
@@ -189,15 +266,15 @@ export default function Sidebar({
                 {displayName?.[0]?.toUpperCase() ?? '?'}
               </div>
             )}
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
                 {displayName}
               </p>
             </div>
-          </div>
-          <form action="/api/auth/signout" method="POST">
-            <button type="submit" className="sidebar-signout">Sign out</button>
-          </form>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transition: 'transform 0.18s', transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
         </div>
       </nav>
 

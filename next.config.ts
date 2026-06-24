@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "ngrok-skip-browser-warning", value: "1" },
+          { key: "ngrok-skip-browser-warning", value: "true" },
         ],
       },
     ];

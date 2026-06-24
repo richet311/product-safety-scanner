@@ -737,6 +737,50 @@ export default function ScannerPage() {
             </div>
           )}
 
+          {/* ── Product details ── */}
+          <div className="scan-card">
+            <p className="scan-card-title">Product Details</p>
+            <p className="scan-card-desc" style={{ marginBottom: '14px' }}>
+              Filled automatically when you scan — or type the ingredients yourself.
+            </p>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label className="field-label" htmlFor="product-name">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><line x1="12" y1="12" x2="12.01" y2="12"/>
+                </svg>
+                Product Name <span style={{ fontWeight: 400, color: '#94a3b8', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+              </label>
+              <input
+                id="product-name"
+                className="scan-input"
+                type="text"
+                placeholder="e.g. Honey Nut Cheerios"
+                value={productName}
+                onChange={e => setProductName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="field-label" htmlFor="ingredients">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                  <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+                Ingredients <span style={{ fontWeight: 400, color: '#ef4444', textTransform: 'none', letterSpacing: 0 }}>*</span>
+              </label>
+              <textarea
+                id="ingredients"
+                className="scan-input"
+                placeholder="Paste or type the ingredients list here…"
+                rows={5}
+                value={ingredients}
+                onChange={e => setIngredients(e.target.value)}
+                style={{ resize: 'vertical', minHeight: '110px' }}
+              />
+            </div>
+          </div>
+
           <button type="submit" className="scan-submit" disabled={!canSubmit}>
             {loading ? (
               <>
