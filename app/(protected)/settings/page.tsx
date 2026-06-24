@@ -277,6 +277,20 @@ function SaveConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCa
         animation: 'fadeIn 0.15s ease',
       }}
     >
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(14px) scale(0.97) } to { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes sheetUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        .modal-backdrop { display: flex; align-items: center; justify-content: center; padding: 20px; }
+        @media (max-width: 640px) {
+          .modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
+          .sc-modal {
+            border-radius: 28px 28px 0 0 !important; max-width: 100% !important;
+            padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
+            animation: sheetUp 0.28s cubic-bezier(0.16,1,0.3,1) !important;
+          }
+        }
+      `}</style>
       <div
         className="sc-modal"
         onClick={e => e.stopPropagation()}
@@ -491,6 +505,7 @@ export default function SettingsPage() {
   const [totpEnrolling, setTotpEnrolling] = useState(false)
   const [totpVerifying, setTotpVerifying] = useState(false)
   const [unenrolling, setUnenrolling] = useState(false)
+  const [totpSecretVisible, setTotpSecretVisible] = useState(false)
   const [totpMsg, setTotpMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
   const [weightKg, setWeightKg] = useState<number | null>(null)
@@ -1127,17 +1142,46 @@ export default function SettingsPage() {
                   <img src={totpQr} alt="QR code" style={{ width: 160, height: 160, display: 'block' }} />
                   {totpSecret && (
                     <div style={{ textAlign: 'center' }}>
-                      <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      <p style={{ margin: '0 0 6px', fontSize: '11px', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                         Can&apos;t scan? Enter manually:
                       </p>
-                      <code style={{
-                        fontSize: '13px', fontFamily: 'monospace', letterSpacing: '0.15em',
-                        color: '#0f172a', fontWeight: 700, background: '#fff',
-                        border: '1px solid #e2e8f0', borderRadius: '8px',
-                        padding: '6px 12px', display: 'inline-block',
-                      }}>
-                        {totpSecret.replace(/(.{4})/g, '$1 ').trim()}
-                      </code>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                        <code style={{
+                          fontSize: '13px', fontFamily: 'monospace', letterSpacing: '0.15em',
+                          color: totpSecretVisible ? '#0f172a' : '#94a3b8', fontWeight: 700, background: '#fff',
+                          border: '1px solid #e2e8f0', borderRadius: '8px',
+                          padding: '6px 12px', display: 'inline-block',
+                          filter: totpSecretVisible ? 'none' : 'blur(4px)',
+                          userSelect: totpSecretVisible ? 'text' : 'none',
+                          transition: 'filter 0.2s',
+                        }}>
+                          {totpSecret.replace(/(.{4})/g, '$1 ').trim()}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => setTotpSecretVisible(v => !v)}
+                          title={totpSecretVisible ? 'Hide code' : 'Reveal code'}
+                          style={{
+                            background: 'none', border: 'none', padding: '4px',
+                            cursor: 'pointer', color: '#94a3b8', display: 'flex',
+                            alignItems: 'center', transition: 'color 0.14s', flexShrink: 0,
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#475569' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#94a3b8' }}
+                        >
+                          {totpSecretVisible ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                              <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
