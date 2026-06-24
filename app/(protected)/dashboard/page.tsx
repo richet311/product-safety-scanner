@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ScanCard } from './ScanCard'
 import type { Scan } from './ScanCard'
 
-const DAILY_LIMIT = Number(process.env.DAILY_SCAN_LIMIT ?? 20)
+const DEFAULT_DAILY_LIMIT = 20
 
 function getGroup(created_at: string): string {
   const now = new Date()
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const [scansResult, usageResult] = await Promise.all([
+  const [scansResult, usageResult, profileResult] = await Promise.all([
     supabase
       .from('scans')
       .select('id, product_name, image_url, overall_grade, analysis, created_at')
@@ -50,13 +50,19 @@ export default async function DashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gte('created_at', today.toISOString()),
+    supabase
+      .from('profiles')
+      .select('daily_scan_limit')
+      .eq('id', user.id)
+      .single(),
   ])
 
   const scans: Scan[] = scansResult.data ?? []
   const todayCount = usageResult.count ?? 0
-  const remaining = DAILY_LIMIT - todayCount
-  const atLimit = todayCount >= DAILY_LIMIT
-  const usagePct = Math.min((todayCount / DAILY_LIMIT) * 100, 100)
+  const dailyLimit = (profileResult.data as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? DEFAULT_DAILY_LIMIT
+  const remaining = dailyLimit - todayCount
+  const atLimit = todayCount >= dailyLimit
+  const usagePct = Math.min((todayCount / dailyLimit) * 100, 100)
 
   const gradeScore = { A: 4, B: 3, C: 2, D: 1 } as const
   const gradeLetters = ['A', 'B', 'C', 'D'] as const
@@ -288,7 +294,7 @@ export default async function DashboardPage() {
                   color: atLimit ? '#ef4444' : '#94a3b8',
                   whiteSpace: 'nowrap', fontFamily: 'inherit',
                 }}>
-                  {atLimit ? 'Limit reached' : `${remaining} / ${DAILY_LIMIT} left today`}
+                  {atLimit ? 'Limit reached' : `${remaining} / ${dailyLimit} left today`}
                 </span>
               </div>
             </div>

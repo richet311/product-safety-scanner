@@ -369,7 +369,7 @@ export default function ScannerPage() {
         .scanner-wrap {
           max-width: 600px;
           margin: 0 auto;
-          padding: 24px 16px 100px;
+          padding: 24px 20px 100px;
         }
         @media (min-width: 640px) {
           .scanner-wrap { padding: 40px 28px 60px; }

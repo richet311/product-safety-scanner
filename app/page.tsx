@@ -1158,6 +1158,69 @@ function CtaSection() {
   );
 }
 
+// ── Disclaimer ────────────────────────────────────────────────────────────────
+
+function DisclaimerSection() {
+  return (
+    <section style={{ backgroundColor: "#1e293b" }} className="py-12 sm:py-16">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="flex items-start gap-4 mb-6">
+          <div
+            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: "rgba(234,179,8,0.15)", border: "1px solid rgba(234,179,8,0.3)" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EAB308" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: "#EAB308" }}>
+              Important Notices
+            </p>
+            <h3 className="text-base font-bold text-white">
+              Disclaimer, Data Use & AI Disclosure
+            </h3>
+          </div>
+        </div>
+
+        <div className="space-y-4 text-sm leading-relaxed" style={{ color: "#94a3b8" }}>
+          <p>
+            <strong className="text-white font-semibold">Not medical or professional advice.</strong>{" "}
+            Surfelt uses artificial intelligence to analyze product ingredients. All results are for
+            informational and educational purposes only. They do not constitute medical, dietary,
+            dermatological, or any other professional advice. Always consult a qualified healthcare
+            professional before making decisions about your health, diet, or the products you use.
+          </p>
+          <p>
+            <strong className="text-white font-semibold">AI accuracy limitations.</strong>{" "}
+            AI-generated ingredient analysis may be incomplete, incorrect, or out of date. Product
+            formulations change. Regulatory classifications vary by country. Surfelt makes no
+            warranty — express or implied — about the accuracy, completeness, or fitness for any
+            purpose of the information provided. Use of this service is at your own risk.
+          </p>
+          <p>
+            <strong className="text-white font-semibold">Data we collect and store.</strong>{" "}
+            To provide personalized results, Surfelt collects and stores your account information,
+            health profile (including allergies, dietary preferences, and health conditions you
+            voluntarily provide), scan history, and any product images you upload. This data is
+            used solely to deliver and improve our service. We do not sell your personal data to
+            third parties. By creating an account and using Surfelt, you consent to this data
+            collection and processing.
+          </p>
+          <p>
+            <strong className="text-white font-semibold">No liability.</strong>{" "}
+            To the fullest extent permitted by law, Surfelt and its operators shall not be liable
+            for any direct, indirect, incidental, or consequential damages arising from your use
+            of, or reliance on, any analysis, grade, or recommendation produced by this service.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 const footerLinks: Record<string, string[]> = {
@@ -1208,7 +1271,7 @@ function Footer() {
             © {new Date().getFullYear()} Surfelt. All rights reserved.
           </p>
           <p className="text-xs text-gray-400 font-semibold">
-            Built with OCR + AI for product safety
+            For informational use only. Not medical advice. AI results may be inaccurate.
           </p>
         </div>
       </div>
@@ -1232,6 +1295,7 @@ export default function Home() {
         <FoodUniverseSection />
         <CtaSection />
       </main>
+      <DisclaimerSection />
       <Footer />
     </div>
   );

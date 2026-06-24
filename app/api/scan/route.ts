@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-const DAILY_LIMIT = Number(process.env.DAILY_SCAN_LIMIT ?? 20)
+const DEFAULT_DAILY_LIMIT = 20
 
 type IngredientAnalysis = {
   name: string
@@ -30,15 +30,24 @@ export async function POST(request: Request) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const { count, error: countError } = await supabase
-    .from('scan_events')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', today.toISOString())
+  const [{ count, error: countError }, { data: profile }] = await Promise.all([
+    supabase
+      .from('scan_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', today.toISOString()),
+    supabase
+      .from('profiles')
+      .select('allergies, dietary_preferences, health_conditions, age, daily_scan_limit')
+      .eq('id', user.id)
+      .single(),
+  ])
 
-  if (!countError && (count ?? 0) >= DAILY_LIMIT) {
+  const dailyLimit = (profile as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? DEFAULT_DAILY_LIMIT
+
+  if (!countError && (count ?? 0) >= dailyLimit) {
     return NextResponse.json(
-      { error: `Daily scan limit of ${DAILY_LIMIT} reached. Try again tomorrow.` },
+      { error: `Daily scan limit of ${dailyLimit} reached. Try again tomorrow.` },
       { status: 429 }
     )
   }
@@ -57,12 +66,6 @@ export async function POST(request: Request) {
 
   if (!ingredients) return NextResponse.json({ error: 'ingredients is required' }, { status: 400 })
   if (ingredients.length > 4000) return NextResponse.json({ error: 'Ingredients text too long (max 4000 chars)' }, { status: 400 })
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('allergies, dietary_preferences, health_conditions, age')
-    .eq('id', user.id)
-    .single()
 
   const profileLines: string[] = []
   if (profile?.allergies?.length) {
@@ -150,7 +153,7 @@ ${ingredients}`,
     id: scanData?.id,
     analysis,
     scans_today: scanData ? (count ?? 0) + 1 : (count ?? 0),
-    daily_limit: DAILY_LIMIT,
+    daily_limit: dailyLimit,
     ...(scanError ? { _save_error: scanError.message } : {}),
   })
 }
