@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const PROTECTED_PREFIXES = ['/dashboard', '/scanner', '/settings', '/scan']
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -31,9 +33,10 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+  const isProtected = PROTECTED_PREFIXES.some(p => pathname.startsWith(p))
 
-  // Unauthenticated users cannot access /dashboard
-  if (pathname.startsWith('/dashboard') && !user) {
+  // Unauthenticated users cannot access protected routes
+  if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     return NextResponse.redirect(loginUrl)
@@ -44,6 +47,12 @@ export async function proxy(request: NextRequest) {
     const dashboardUrl = request.nextUrl.clone()
     dashboardUrl.pathname = '/dashboard'
     return NextResponse.redirect(dashboardUrl)
+  }
+
+  // Prevent browser from caching protected pages — fixes forward-navigation showing stale signed-in state
+  if (isProtected && user) {
+    supabaseResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    supabaseResponse.headers.set('Pragma', 'no-cache')
   }
 
   return supabaseResponse
