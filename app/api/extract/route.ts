@@ -45,6 +45,7 @@ async function lookupOpenFoodNetwork(subdomain: string, barcode: string): Promis
     const productName: string | undefined = p.product_name_en || p.product_name || undefined
     const ingredients: string | undefined =
       p.ingredients_text_en || p.ingredients_text ||
+      p.ingredients_text_with_allergens_en || p.ingredients_text_with_allergens ||
       p.composition_en || p.composition || undefined
     const productImageUrl: string | undefined =
       p.selected_images?.front?.display?.en || p.image_front_url || p.image_url || undefined
@@ -66,14 +67,18 @@ async function searchOpenFoodNetwork(
       search_simple: '1',
       action: 'process',
       json: '1',
-      page_size: '5',
+      page_size: '12',
     })
     const res = await fetch(`https://world.${subdomain}.org/cgi/search.pl?${params}`, { headers: HEADERS })
     const data = await res.json()
     const products = (data?.products ?? []) as Record<string, unknown>[]
     for (const p of products) {
       const productName = ((p.product_name_en || p.product_name) as string) || ''
-      const ingredients = ((p.ingredients_text_en || p.ingredients_text || p.composition_en || p.composition) as string) || ''
+      const ingredients = ((
+        p.ingredients_text_en || p.ingredients_text ||
+        p.ingredients_text_with_allergens_en || p.ingredients_text_with_allergens ||
+        p.composition_en || p.composition
+      ) as string) || ''
       const sel = p.selected_images as Record<string, unknown> | undefined
       const productImageUrl =
         ((sel?.front as Record<string, unknown>)?.display as Record<string, string>)?.en ??
@@ -230,14 +235,29 @@ async function lookupBarcode(barcode: string) {
     }
   }
 
+  // 7. Last resort: name search across all Open*Facts networks
+  if (foundName) {
+    const nameSearch = await fetchProductByName(foundName)
+    if (nameSearch) {
+      return NextResponse.json({
+        barcode,
+        product_name: nameSearch.product_name,
+        ingredients: nameSearch.ingredients,
+        ...(nameSearch.product_image_url ? { product_image_url: nameSearch.product_image_url } : {}),
+        ...(foundImageUrl && !nameSearch.product_image_url ? { product_image_url: foundImageUrl } : {}),
+      })
+    }
+  }
+
   return NextResponse.json(
     { error: 'Product not found. Try the Photo tab to photograph the ingredient label directly.', barcode },
     { status: 404 }
   )
 }
 
-async function searchProductByName(query: string) {
-  // Search all three Open*Facts networks in parallel
+async function fetchProductByName(
+  query: string
+): Promise<{ product_name: string; ingredients: string; product_image_url?: string } | null> {
   const [foodResult, beautyResult, productsResult] = await Promise.all([
     searchOpenFoodNetwork('openfoodfacts', query),
     searchOpenFoodNetwork('openbeautyfacts', query),
@@ -245,14 +265,18 @@ async function searchProductByName(query: string) {
   ])
 
   for (const result of [foodResult, beautyResult, productsResult]) {
-    if (result) return NextResponse.json(result)
+    if (result) return result
   }
 
-  // OpenFDA by name (medications, OTC drugs, supplements)
   const fdaResult = await lookupOpenFDAByName(query)
-  if (fdaResult) {
-    return NextResponse.json(fdaResult)
-  }
+  if (fdaResult) return { ...fdaResult }
+
+  return null
+}
+
+async function searchProductByName(query: string) {
+  const result = await fetchProductByName(query)
+  if (result) return NextResponse.json(result)
 
   return NextResponse.json(
     { error: `Couldn't find "${query}" in our database. Try scanning the barcode instead.`, product_name: query },
