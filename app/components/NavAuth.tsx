@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 function SignOutModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   const [signing, setSigning] = useState(false)
@@ -11,34 +12,35 @@ function SignOutModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel
     onConfirm()
   }
 
-  return (
+  return createPortal(
     <div
       onClick={signing ? undefined : onCancel}
+      className="so-nav-backdrop"
       style={{
         position: 'fixed', inset: 0, zIndex: 1200,
         background: 'rgba(15,23,42,0.45)',
         backdropFilter: 'blur(4px)',
         WebkitBackdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
-        animation: 'soFadeIn 0.15s ease',
+        animation: 'soNavFadeIn 0.15s ease',
       }}
     >
       <style>{`
-        @keyframes soFadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes soSlideUp { from { opacity: 0; transform: translateY(14px) scale(0.97) } to { opacity: 1; transform: translateY(0) scale(1) } }
-        @keyframes soSheetUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        @keyframes soNavFadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes soNavSlideUp { from { opacity: 0; transform: translateY(14px) scale(0.97) } to { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes soNavSheetUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        .so-nav-backdrop { display: flex; align-items: center; justify-content: center; padding: 20px; }
         .so-nav-modal {
           background: #fff; border-radius: 28px;
           padding: 30px 26px 26px; max-width: 340px; width: 100%;
           box-shadow: 0 24px 80px rgba(0,0,0,0.18);
-          animation: soSlideUp 0.22s cubic-bezier(0.16,1,0.3,1);
+          animation: soNavSlideUp 0.22s cubic-bezier(0.16,1,0.3,1);
         }
         @media (max-width: 640px) {
+          .so-nav-backdrop { align-items: flex-end !important; padding: 0 !important; }
           .so-nav-modal {
-            position: fixed; bottom: 0; left: 0; right: 0;
             border-radius: 28px 28px 0 0 !important; max-width: 100% !important;
             padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
-            animation: soSheetUp 0.28s cubic-bezier(0.16,1,0.3,1) !important;
+            animation: soNavSheetUp 0.28s cubic-bezier(0.16,1,0.3,1) !important;
           }
         }
       `}</style>
@@ -95,7 +97,8 @@ function SignOutModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
