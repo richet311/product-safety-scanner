@@ -9,11 +9,11 @@ export default async function OnboardingPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, username')
     .eq('id', user.id)
     .single()
 
-  if (profile) redirect('/dashboard')
+  if (profile?.username) redirect('/dashboard')
 
   const meta = user.user_metadata as Record<string, string> | null
   return (

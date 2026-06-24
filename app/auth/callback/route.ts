@@ -54,7 +54,7 @@ export async function GET(request: Request) {
   // Check profile existence once — used for both signup detection and onboarding redirect
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, username')
     .eq('id', user.id)
     .single()
 
@@ -63,8 +63,14 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?message=google_existing`)
   }
 
-  // New user (no profile yet) → onboarding
+  // New user (no profile yet) → create a stub so they appear in the DB even if onboarding is abandoned
   if (!profile) {
+    await supabase.from('profiles').insert({ id: user.id })
+    return NextResponse.redirect(`${origin}/onboarding`)
+  }
+
+  // Returning user who never finished onboarding (stub exists but username not set) → back to onboarding
+  if (!profile.username) {
     return NextResponse.redirect(`${origin}/onboarding`)
   }
 
