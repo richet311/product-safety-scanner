@@ -168,8 +168,8 @@ export default function PrivacyPolicyPage() {
             </ul>
             <p className="mt-3">
               To exercise these rights, contact us at{' '}
-              <a href="mailto:richetsopa@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
-                richetsopa@gmail.com
+              <a href="mailto:surfeltsupport@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
+                surfeltsupport@gmail.com
               </a>.
             </p>
           </section>
@@ -206,8 +206,8 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-lg font-black text-gray-900 mb-3">10. Contact</h2>
             <p>
               Questions about this Privacy Policy? Email us at{' '}
-              <a href="mailto:richetsopa@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
-                richetsopa@gmail.com
+              <a href="mailto:surfeltsupport@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
+                surfeltsupport@gmail.com
               </a>.
             </p>
           </section>

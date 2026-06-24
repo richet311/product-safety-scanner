@@ -144,8 +144,8 @@ export default function CookiePolicyPage() {
             <h2 className="text-lg font-black text-gray-900 mb-3">6. Contact</h2>
             <p>
               Questions about our use of cookies? Email us at{' '}
-              <a href="mailto:richetsopa@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
-                richetsopa@gmail.com
+              <a href="mailto:surfeltsupport@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
+                surfeltsupport@gmail.com
               </a>.
             </p>
           </section>

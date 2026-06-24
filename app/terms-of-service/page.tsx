@@ -208,8 +208,8 @@ export default function TermsOfServicePage() {
             <h2 className="text-lg font-black text-gray-900 mb-3">14. Contact</h2>
             <p>
               Questions about these Terms? Email us at{' '}
-              <a href="mailto:richetsopa@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
-                richetsopa@gmail.com
+              <a href="mailto:surfeltsupport@gmail.com" className="underline hover:text-gray-900" style={{ color: '#00C37A' }}>
+                surfeltsupport@gmail.com
               </a>.
             </p>
           </section>
