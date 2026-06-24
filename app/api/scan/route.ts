@@ -93,6 +93,9 @@ export async function POST(request: Request) {
         {
           role: 'user',
           content: `Analyze these product ingredients for safety. Return ONLY valid JSON.
+${productName ? `\nProduct: ${productName}` : ''}
+
+This product may be a food, beverage, medication, supplement, cosmetic, skincare product, personal care item, or household product. Grade each ingredient based on safety for its intended use (oral, topical, inhalation, etc.) — infer the usage context from the product name and ingredient list.
 
 Schema:
 {"overall_grade":"A"|"B"|"C"|"D","summary":"1-2 sentence safety assessment","ingredients":[{"name":"ingredient name","grade":"A"|"B"|"C"|"D","concern":"brief concern or null","safe":true|false,"flagged":false}],"user_alerts":[]}

@@ -884,18 +884,24 @@ export default function SettingsPage() {
                     type="date"
                     value={dob}
                     onChange={e => setDob(e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 5); return d.toISOString().split('T')[0] })()}
                     style={{ maxWidth: '200px' }}
                   />
-                  {computedAge != null && (
+                  {computedAge != null && computedAge >= 5 && (
                     <span style={{ fontSize: '12.5px', color: '#007a4d', fontWeight: 700, background: 'rgba(0,195,122,0.1)', borderRadius: '100px', padding: '5px 13px', flexShrink: 0 }}>
                       Age {computedAge}
                     </span>
                   )}
                 </div>
-                <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: '#cbd5e1' }}>
-                  Your age is calculated automatically from your date of birth.
-                </p>
+                {computedAge != null && computedAge < 5 ? (
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#ef4444', fontWeight: 600 }}>
+                    Must be 5 years or older to use Surfelt.
+                  </p>
+                ) : (
+                  <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: '#cbd5e1' }}>
+                    Your age is calculated automatically from your date of birth.
+                  </p>
+                )}
               </div>
 
               <div>

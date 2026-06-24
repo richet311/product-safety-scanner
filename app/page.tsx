@@ -150,6 +150,11 @@ function FruitGradientDefs() {
           <stop offset="48%" stopColor="#A5D6A7" />
           <stop offset="100%" stopColor="#2E7D32" />
         </linearGradient>
+        <linearGradient id="fg-med-bottle" x1="17" y1="19" x2="47" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFE0B2" />
+          <stop offset="55%" stopColor="#FB8C00" />
+          <stop offset="100%" stopColor="#E65100" />
+        </linearGradient>
       </defs>
     </svg>
   );
@@ -234,22 +239,24 @@ function SupplementBottleProduct({ className, style }: IconProps) {
   );
 }
 
-function BabyPetProduct({ className, style }: IconProps) {
+function MedicationProduct({ className, style }: IconProps) {
   return (
     <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M28 8 Q28 3 32 3 Q36 3 36 8 V12 H28 Z" fill="#F8BBD0" />
-      <rect x="24" y="11" width="16" height="8" rx="3" fill="#EC407A" />
-      <path d="M21 26 Q21 18 29 18 H35 Q43 18 43 26 V52 Q43 61 34 61 H30 Q21 61 21 52 Z" fill="url(#fg-baby-bottle)" />
-      <path d="M25 34 H39" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.68" />
-      <path d="M26 42 H38" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.68" />
-      <path d="M27 50 H37" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.68" />
-      <ellipse cx="28" cy="29" rx="4" ry="9" fill="white" fillOpacity="0.24" transform="rotate(-12 28 29)" />
-      <circle cx="49" cy="42" r="5" fill="#5D4037" />
-      <circle cx="42" cy="38" r="2.8" fill="#5D4037" />
-      <circle cx="48" cy="34" r="2.8" fill="#5D4037" />
-      <circle cx="55" cy="38" r="2.8" fill="#5D4037" />
-      <circle cx="46" cy="48" r="2.5" fill="#5D4037" />
-      <path d="M44 44 Q49 51 55 44" stroke="#8D6E63" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+      {/* Screw cap */}
+      <rect x="22" y="8" width="20" height="10" rx="3" fill="#9E9E9E" />
+      <rect x="24" y="14" width="16" height="5" rx="2.5" fill="#BDBDBD" />
+      {/* Bottle body */}
+      <path d="M17 24 Q17 19 25 19 H39 Q47 19 47 24 V52 Q47 60 39 60 H25 Q17 60 17 52 Z" fill="url(#fg-med-bottle)" />
+      {/* White label */}
+      <rect x="21" y="30" width="22" height="22" rx="3" fill="white" fillOpacity="0.9" />
+      {/* Medical cross */}
+      <rect x="30" y="33" width="4" height="16" rx="2" fill="#1565C0" />
+      <rect x="24" y="39" width="16" height="4" rx="2" fill="#1565C0" />
+      {/* Shoulder highlight */}
+      <ellipse cx="25" cy="26" rx="4" ry="5" fill="white" fillOpacity="0.22" transform="rotate(-10 25 26)" />
+      <circle cx="23" cy="24" r="2.5" fill="white" fillOpacity="0.32" />
+      {/* Side shine */}
+      <ellipse cx="22" cy="45" rx="3" ry="10" fill="white" fillOpacity="0.18" transform="rotate(-8 22 45)" />
     </svg>
   );
 }
@@ -758,7 +765,7 @@ function HeroSection() {
             </h1>
 
             <p className="anim-fade-up anim-fade-up-3 text-lg text-gray-600 leading-relaxed mb-8 max-w-120 font-medium" style={{ lineHeight: "1.7" }}>
-              Photograph any label. Our AI reads every ingredient and grades each one A to D, giving you a full safety report in seconds.
+              Scan a barcode or photograph any label. Our AI reads every ingredient and grades each one A to D, giving you a full safety report in seconds.
             </p>
 
             <div className="anim-fade-up anim-fade-up-4 flex flex-col sm:flex-row gap-3 mb-8">
@@ -800,7 +807,7 @@ function HowItWorksSection() {
       icon: CameraIcon,
       title: "Photograph the label",
       description:
-        "Point your camera at any product: food, cosmetics, supplements, household items. Works with curved labels, small print, and multiple languages.",
+        "Scan the barcode or point your camera at any product label: food, cosmetics, medications, household items, and more. Works with curved labels, small print, and multiple languages.",
       color: "#00C37A",
     },
     {
@@ -977,7 +984,7 @@ function FeaturesSection() {
       icon: ScanIcon,
       title: "Scan any label",
       description:
-        "Point your camera at any product. Surfelt reads curved labels, small print, and poor lighting in any language.",
+        "Scan a barcode or point your camera at any label. Surfelt reads curved labels, small print, and poor lighting across multiple languages.",
       accent: "#00C37A",
       bg: "#E6FAF3",
     },
@@ -1085,7 +1092,7 @@ function FoodUniverseSection() {
     { Fruit: AppleFruit,               label: "Food & Beverages" },
     { Fruit: CosmeticBottleProduct,    label: "Cosmetics & Skincare" },
     { Fruit: SupplementBottleProduct,  label: "Supplements" },
-    { Fruit: BabyPetProduct,           label: "Baby & Pet Products" },
+    { Fruit: MedicationProduct,         label: "Medications & OTC" },
   ];
 
   return (
@@ -1101,8 +1108,8 @@ function FoodUniverseSection() {
             Every ingredient. Every product.
           </h2>
           <p className="mt-4 text-lg text-gray-500 font-medium max-w-xl mx-auto">
-            Point your camera at any product. Our AI reads every ingredient
-            and grades each one A to D.
+            Scan a barcode or photograph any label. Our AI reads every ingredient
+            and grades each one A to D, across all supported product types.
           </p>
         </div>
 

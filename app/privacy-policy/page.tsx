@@ -127,21 +127,21 @@ export default function PrivacyPolicyPage() {
             <p>We rely on the following sub-processors to operate Surfelt:</p>
             <ul className="list-disc pl-5 space-y-2 mt-3">
               <li>
-                <strong className="text-gray-800">Supabase</strong> — provides our database, authentication,
+                <strong className="text-gray-800">Supabase</strong>: provides our database, authentication,
                 and file storage. Your account data, health profile, scan history, and product images are
                 stored on Supabase infrastructure.
               </li>
               <li>
-                <strong className="text-gray-800">Groq</strong> — provides the AI inference API used to
+                <strong className="text-gray-800">Groq</strong>: provides the AI inference API used to
                 analyze ingredient lists and extract text from product photos. Ingredient text and images
                 are sent to Groq for processing and are subject to Groq's privacy policy.
               </li>
               <li>
-                <strong className="text-gray-800">Google</strong> — provides OAuth sign-in. When you sign
+                <strong className="text-gray-800">Google</strong>: provides OAuth sign-in. When you sign
                 in with Google, Google's privacy policy governs the authentication flow.
               </li>
               <li>
-                <strong className="text-gray-800">Vercel</strong> — hosts our web application. Vercel may
+                <strong className="text-gray-800">Vercel</strong>: hosts our web application. Vercel may
                 collect standard web server logs (IP addresses, request metadata) as part of hosting.
               </li>
             </ul>

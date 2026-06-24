@@ -8,11 +8,26 @@ const BarcodeCamera = dynamic(() => import('./BarcodeCamera'), { ssr: false })
 const CameraCapture = dynamic(() => import('./CameraCapture'), { ssr: false })
 
 type Tab = 'barcode' | 'label'
+type ProductMatch = {
+  product_name?: string
+  ingredients: string
+  product_image_url?: string
+  source?: string
+}
 type ExtractState =
   | { status: 'idle' }
   | { status: 'loading'; message: string; step?: number; totalSteps?: number }
   | { status: 'success'; message: string }
   | { status: 'error'; message: string }
+  | { status: 'picking'; matches: ProductMatch[] }
+
+const SOURCE_LABELS: Record<string, string> = {
+  openfoodfacts: 'Open Food Facts',
+  openbeautyfacts: 'Open Beauty Facts',
+  openproductsfacts: 'Open Products Facts',
+  openfda: 'OpenFDA',
+  upcitemdb: 'UPC Item DB',
+}
 
 type IngredientResult = {
   name: string
@@ -219,6 +234,10 @@ export default function ScannerPage() {
         body: JSON.stringify({ barcode }),
       })
       const json = await res.json()
+      if (res.ok && Array.isArray(json.matches) && json.matches.length > 1) {
+        setExtractState({ status: 'picking', matches: json.matches })
+        return
+      }
       if (!res.ok || !json.ingredients) {
         setExtractState({ status: 'error', message: json.error ?? 'Product not found. Try the Photo tab.' })
         return
@@ -551,7 +570,18 @@ export default function ScannerPage() {
           </div>
         )}
 
-        {!loading && (
+        {!loading && extractState.status === 'picking' && (
+          <ProductPicker
+            matches={extractState.matches}
+            onSelect={(match) => {
+              setExtractState({ status: 'idle' })
+              runAnalysis(match.product_name, match.ingredients, null, match.product_image_url)
+            }}
+            onBack={() => setExtractState({ status: 'idle' })}
+          />
+        )}
+
+        {!loading && extractState.status !== 'picking' && (
           <>
             {tab === 'barcode' && (
               <div className="scan-card">
@@ -778,8 +808,130 @@ function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis
   )
 }
 
+function ProductPicker({ matches, onSelect, onBack }: {
+  matches: ProductMatch[]
+  onSelect: (match: ProductMatch) => void
+  onBack: () => void
+}) {
+  return (
+    <div style={{ marginBottom: '14px' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          background: 'rgba(0,195,122,0.1)', borderRadius: '20px',
+          padding: '4px 12px', marginBottom: '10px',
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9V6a1 1 0 0 1 1-1h3M15 5h3a1 1 0 0 1 1 1v3M21 15v3a1 1 0 0 1-1 1h-3M9 19H6a1 1 0 0 1-1-1v-3"/>
+            <line x1="7" y1="9" x2="7" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/>
+            <line x1="14" y1="9" x2="14" y2="15"/><line x1="17" y1="9" x2="17" y2="15"/>
+          </svg>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#007a4d', letterSpacing: '0.04em' }}>
+            {matches.length} products with this barcode
+          </span>
+        </div>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>
+          Which product are you scanning?
+        </h2>
+        <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+          This barcode is shared by multiple products. Select the one you have.
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+        {matches.map((match, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onSelect(match)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '14px',
+              background: '#fff', border: '1.5px solid #e2e8f0',
+              borderRadius: '16px', padding: '12px 14px',
+              cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#00C37A'
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,195,122,0.15)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#e2e8f0'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)'
+            }}
+          >
+            {match.product_image_url ? (
+              <img
+                src={match.product_image_url}
+                alt={match.product_name ?? 'Product'}
+                style={{
+                  width: 64, height: 64, borderRadius: '10px',
+                  objectFit: 'contain', background: '#f8fafc',
+                  flexShrink: 0, border: '1px solid #f1f5f9',
+                }}
+              />
+            ) : (
+              <div style={{
+                width: 64, height: 64, borderRadius: '10px',
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1px solid #bbf7d0',
+              }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9V6a1 1 0 0 1 1-1h3M15 5h3a1 1 0 0 1 1 1v3M21 15v3a1 1 0 0 1-1 1h-3M9 19H6a1 1 0 0 1-1-1v-3"/>
+                  <line x1="7" y1="9" x2="7" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/>
+                  <line x1="14" y1="9" x2="14" y2="15"/><line x1="17" y1="9" x2="17" y2="15"/>
+                </svg>
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                margin: '0 0 5px', fontSize: '14.5px', fontWeight: 700,
+                color: '#0f172a', lineHeight: 1.3,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {match.product_name ?? 'Unknown Product'}
+              </p>
+              {match.source && (
+                <span style={{
+                  display: 'inline-block',
+                  fontSize: '10.5px', fontWeight: 600, color: '#64748b',
+                  background: '#f1f5f9', borderRadius: '5px', padding: '2px 7px',
+                }}>
+                  {SOURCE_LABELS[match.source] ?? match.source}
+                </span>
+              )}
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={onBack}
+        style={{
+          width: '100%', padding: '11px', borderRadius: '12px',
+          border: '1.5px solid #e2e8f0', background: 'transparent',
+          color: '#64748b', fontSize: '13.5px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Scan a different barcode
+      </button>
+    </div>
+  )
+}
+
 function ExtractStatus({ state, onRetry }: { state: ExtractState; onRetry?: () => void }) {
-  if (state.status === 'idle') return null
+  if (state.status === 'idle' || state.status === 'picking') return null
 
   const config = {
     loading: { bg: 'rgba(0,195,122,0.06)', border: 'rgba(0,195,122,0.2)', color: '#007a4d' },

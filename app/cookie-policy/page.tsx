@@ -63,8 +63,8 @@ export default function CookiePolicyPage() {
             <h2 className="text-lg font-black text-gray-900 mb-3">1. What Are Cookies?</h2>
             <p>
               Cookies are small text files stored on your device by your web browser when you visit a
-              website. They allow the website to remember information about your visit — for example,
-              whether you are logged in — so you don't have to re-enter it every time.
+              website. They allow the website to remember information about your visit, such as
+              whether you are logged in, so you don't have to re-enter it every time.
             </p>
           </section>
 
@@ -84,7 +84,7 @@ export default function CookiePolicyPage() {
                 <tbody className="divide-y divide-gray-100">
                   <tr>
                     <td className="px-4 py-3 font-mono text-gray-800 font-semibold">sb-*-auth-token</td>
-                    <td className="px-4 py-3 text-gray-600">Supabase authentication session — keeps you logged in</td>
+                    <td className="px-4 py-3 text-gray-600">Supabase authentication session (keeps you logged in)</td>
                     <td className="px-4 py-3 text-gray-600">Session / 1 week</td>
                   </tr>
                   <tr>
@@ -98,7 +98,7 @@ export default function CookiePolicyPage() {
 
             <p className="mt-4">
               These cookies are <strong className="text-gray-800">strictly necessary</strong>. Without
-              them, the Service cannot function — you would not be able to stay logged in or complete
+              them, the Service cannot function. You would not be able to stay logged in or complete
               the Google sign-in flow.
             </p>
           </section>
@@ -117,7 +117,7 @@ export default function CookiePolicyPage() {
             <h2 className="text-lg font-black text-gray-900 mb-3">4. Managing Cookies</h2>
             <p>
               Because the cookies we use are strictly necessary to operate the Service, we do not
-              display a cookie consent banner — there is nothing optional to consent to.
+              display a cookie consent banner. There is nothing optional to consent to.
             </p>
             <p className="mt-3">
               You can block or delete cookies through your browser settings at any time. However,
