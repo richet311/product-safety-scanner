@@ -164,15 +164,18 @@ export default async function DashboardPage() {
 
         .scan-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: 1fr;
           gap: 10px;
+        }
+        @media (min-width: 480px) {
+          .scan-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (min-width: 640px) {
           .scan-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
         }
 
-        .scan-card-img { height: 100px; }
-        @media (min-width: 400px) { .scan-card-img { height: 115px; } }
+        .scan-card-img { height: 160px; }
+        @media (min-width: 480px) { .scan-card-img { height: 115px; } }
         @media (min-width: 640px) { .scan-card-img { height: 160px; } }
 
         .scan-card-body { padding: 8px 10px 10px; }

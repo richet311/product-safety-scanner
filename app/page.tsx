@@ -1161,61 +1161,61 @@ function CtaSection() {
 // ── Disclaimer ────────────────────────────────────────────────────────────────
 
 function DisclaimerSection() {
+  const items = [
+    {
+      title: "Not medical advice",
+      body: "All results are for informational purposes only and do not constitute medical, dietary, or professional advice. Always consult a qualified healthcare professional before making decisions about your health or the products you use.",
+    },
+    {
+      title: "AI accuracy",
+      body: "AI-generated analyses may be incomplete, incorrect, or out of date. Product formulations change and regulatory classifications vary by country. Use of this service is at your own risk.",
+    },
+    {
+      title: "Data we collect",
+      body: "Surfelt stores your account information, health profile (allergies, dietary preferences, health conditions), scan history, and uploaded product images to deliver the service. We do not sell your data to third parties.",
+    },
+    {
+      title: "No liability",
+      body: "To the fullest extent permitted by law, Surfelt and its operators shall not be liable for any direct, indirect, incidental, or consequential damages arising from your use of or reliance on any analysis produced by this service.",
+    },
+  ];
+
   return (
-    <section style={{ backgroundColor: "#1e293b" }} className="py-12 sm:py-16">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-start gap-4 mb-6">
-          <div
-            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "rgba(234,179,8,0.15)", border: "1px solid rgba(234,179,8,0.3)" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EAB308" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: "#EAB308" }}>
-              Important Notices
-            </p>
-            <h3 className="text-base font-bold text-white">
-              Disclaimer, Data Use & AI Disclosure
-            </h3>
-          </div>
+    <section className="py-20 sm:py-24" style={{ backgroundColor: "#F0F2F5" }}>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: "#00C37A" }}>
+            Disclosures
+          </p>
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+            Important notices
+          </h2>
         </div>
 
-        <div className="space-y-4 text-sm leading-relaxed" style={{ color: "#94a3b8" }}>
-          <p>
-            <strong className="text-white font-semibold">Not medical or professional advice.</strong>{" "}
-            Surfelt uses artificial intelligence to analyze product ingredients. All results are for
-            informational and educational purposes only. They do not constitute medical, dietary,
-            dermatological, or any other professional advice. Always consult a qualified healthcare
-            professional before making decisions about your health, diet, or the products you use.
-          </p>
-          <p>
-            <strong className="text-white font-semibold">AI accuracy limitations.</strong>{" "}
-            AI-generated ingredient analysis may be incomplete, incorrect, or out of date. Product
-            formulations change. Regulatory classifications vary by country. Surfelt makes no
-            warranty, express or implied, about the accuracy, completeness, or fitness for any
-            purpose of the information provided. Use of this service is at your own risk.
-          </p>
-          <p>
-            <strong className="text-white font-semibold">Data we collect and store.</strong>{" "}
-            To provide personalized results, Surfelt collects and stores your account information,
-            health profile (including allergies, dietary preferences, and health conditions you
-            voluntarily provide), scan history, and any product images you upload. This data is
-            used solely to deliver and improve our service. We do not sell your personal data to
-            third parties. By creating an account and using Surfelt, you consent to this data
-            collection and processing.
-          </p>
-          <p>
-            <strong className="text-white font-semibold">No liability.</strong>{" "}
-            To the fullest extent permitted by law, Surfelt and its operators shall not be liable
-            for any direct, indirect, incidental, or consequential damages arising from your use
-            of, or reliance on, any analysis, grade, or recommendation produced by this service.
-          </p>
+        <div className="grid sm:grid-cols-2 gap-6">
+          {items.map(({ title, body }) => (
+            <div
+              key={title}
+              className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="w-1.5 h-5 rounded-full shrink-0"
+                  style={{ backgroundColor: "#00C37A" }}
+                />
+                <h3 className="text-sm font-black text-gray-900">{title}</h3>
+              </div>
+              <p className="text-sm text-gray-500 font-medium leading-relaxed">{body}</p>
+            </div>
+          ))}
         </div>
+
+        <p className="text-center text-xs text-gray-400 font-medium mt-8">
+          By using Surfelt you agree to our{" "}
+          <a href="/terms-of-service" className="underline hover:text-gray-700 transition-colors">Terms of Service</a>
+          {" "}and{" "}
+          <a href="/privacy-policy" className="underline hover:text-gray-700 transition-colors">Privacy Policy</a>.
+        </p>
       </div>
     </section>
   );
@@ -1223,47 +1223,45 @@ function DisclaimerSection() {
 
 // ── Footer ────────────────────────────────────────────────────────────────────
 
-const footerLinks: Record<string, string[]> = {
-  Product: ["Features", "Pricing", "Changelog", "Roadmap"],
-  Company: ["About", "Blog", "Careers", "Contact"],
-  Legal:   ["Privacy Policy", "Terms of Service", "Cookie Policy"],
-};
+const legalLinks = [
+  { label: "Privacy Policy",   href: "/privacy-policy" },
+  { label: "Terms of Service", href: "/terms-of-service" },
+  { label: "Cookie Policy",    href: "/cookie-policy" },
+];
 
 function Footer() {
   return (
     <footer className="border-t border-gray-200" style={{ backgroundColor: "#E8EAED" }}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
-          <div className="col-span-2 md:col-span-1">
+        <div className="flex flex-col sm:flex-row justify-between gap-12">
+          <div className="max-w-xs">
             <div className="mb-4">
               <span className="font-display text-2xl font-bold tracking-tight text-gray-900">
                 Surf<span style={{ color: "#00C37A" }}>elt</span>
               </span>
             </div>
-            <p className="text-sm text-gray-400 font-medium leading-relaxed max-w-xs">
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">
               AI-powered product safety analysis. Know every ingredient. Grade every risk.
             </p>
           </div>
 
-          {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
-              <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">
-                {category}
-              </h4>
-              <ul className="space-y-3">
-                {links.map((link) => (
-                  <li key={link}>
-                    <a
-                      href="#"
-                      className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors duration-150 cursor-pointer"
-                    >
-                      {link}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">
+              Legal
+            </h4>
+            <ul className="space-y-3">
+              {legalLinks.map(({ label, href }) => (
+                <li key={label}>
+                  <a
+                    href={href}
+                    className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors duration-150 cursor-pointer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
