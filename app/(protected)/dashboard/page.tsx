@@ -114,6 +114,10 @@ export default async function DashboardPage() {
       <style>{`
         .dashboard-wrap {
           padding: 32px 20px 80px;
+          max-width: 1440px;
+          margin: 0 auto;
+          width: 100%;
+          box-sizing: border-box;
         }
         @media (min-width: 640px) {
           .dashboard-wrap { padding: 40px 32px 60px; }
@@ -150,16 +154,15 @@ export default async function DashboardPage() {
           .scan-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (min-width: 640px) {
-          .scan-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
-        }
-        @media (min-width: 1060px) {
-          .scan-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+          .scan-grid {
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 14px;
+          }
         }
 
         .scan-card-img { height: 160px; }
         @media (min-width: 480px) { .scan-card-img { height: 115px; } }
-        @media (min-width: 640px) { .scan-card-img { height: 160px; } }
-        @media (min-width: 1060px) { .scan-card-img { height: 130px; } }
+        @media (min-width: 640px) { .scan-card-img { height: 150px; } }
 
         .scan-card-body { padding: 8px 10px 10px; }
         @media (min-width: 640px) { .scan-card-body { padding: 14px 16px 16px; } }
