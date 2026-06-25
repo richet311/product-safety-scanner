@@ -129,7 +129,7 @@ export default function ScannerPage() {
         const todayUTC = new Date()
         todayUTC.setUTCHours(0, 0, 0, 0)
         const [{ count }, { data: profile }] = await Promise.all([
-          supabase.from('scan_events').select('*', { count: 'exact', head: true })
+          supabase.from('scans').select('*', { count: 'exact', head: true })
             .eq('user_id', user.id).gte('created_at', todayUTC.toISOString()),
           supabase.from('profiles').select('daily_scan_limit').eq('id', user.id).single(),
         ])

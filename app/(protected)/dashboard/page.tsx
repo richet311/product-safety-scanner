@@ -53,7 +53,7 @@ export default async function DashboardPage() {
       .eq('id', user.id)
       .single(),
     supabase
-      .from('scan_events')
+      .from('scans')
       .select('created_at')
       .eq('user_id', user.id)
       .gte('created_at', twoDaysAgo),

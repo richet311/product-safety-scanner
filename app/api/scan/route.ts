@@ -33,11 +33,11 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  today.setUTCHours(0, 0, 0, 0)
 
   const [{ count, error: countError }, { data: profile }] = await Promise.all([
     supabase
-      .from('scan_events')
+      .from('scans')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gte('created_at', today.toISOString()),
@@ -149,10 +149,6 @@ ${ingredients}`
 
   if (scanError) {
     console.error('[scan] insert failed:', scanError.message)
-  } else {
-    // Only count usage when the scan was actually saved
-    const { error: eventError } = await supabase.from('scan_events').insert({ user_id: user.id })
-    if (eventError) console.error('[scan] scan_events insert failed:', eventError.message)
   }
 
   return NextResponse.json({
