@@ -143,7 +143,7 @@ function extractOpenFDAIngredients(
   return { product_name: productName, ingredients }
 }
 
-// Web scraping fallback: DuckDuckGo (general + Amazon-specific) → Jina Reader → AI extraction
+// Web scraping fallback: DuckDuckGo (general + retail + SDS) → Jina Reader → AI extraction
 async function webScrapeForIngredients(
   productName: string
 ): Promise<{ product_name: string; ingredients: string } | null> {
@@ -152,15 +152,21 @@ async function webScrapeForIngredients(
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': 'text/html',
     }
-    const SKIP_DOMAINS = ['duckduckgo.com', 'wikipedia.org', 'twitter.com', 'facebook.com', 'reddit.com', 'youtube.com']
+    const SKIP_DOMAINS = ['duckduckgo.com', 'wikipedia.org', 'twitter.com', 'facebook.com', 'reddit.com', 'youtube.com', 'pinterest.com', 'instagram.com', 'tiktok.com']
+    // Preferred domains: consistently list full ingredient data
+    const PREFER_DOMAINS = ['walmart.com', 'target.com', 'sephora.com', 'ulta.com', 'ewg.org', 'amazon.com', 'cvs.com', 'walgreens.com', 'fragrantica.com', 'homedepot.com']
 
-    // Run two DDG searches in parallel: general ingredients search + Amazon-specific
-    const [generalRes, amazonRes] = await Promise.allSettled([
+    // 3 parallel DDG searches: general, retail-focused, SDS (Safety Data Sheets for cleaning/household)
+    const [generalRes, retailRes, sdsRes] = await Promise.allSettled([
       fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(productName + ' ingredients')}`, {
         headers: DDG_HEADERS,
         signal: AbortSignal.timeout(5000),
       }),
-      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent('site:amazon.com ' + productName)}`, {
+      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(productName + ' ingredients walmart OR sephora OR target OR ulta OR ewg')}`, {
+        headers: DDG_HEADERS,
+        signal: AbortSignal.timeout(5000),
+      }),
+      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(productName + ' safety data sheet ingredients')}`, {
         headers: DDG_HEADERS,
         signal: AbortSignal.timeout(5000),
       }),
@@ -180,29 +186,41 @@ async function webScrapeForIngredients(
     }
 
     const generalHtml = generalRes.status === 'fulfilled' && generalRes.value.ok ? await generalRes.value.text() : ''
-    const amazonHtml = amazonRes.status === 'fulfilled' && amazonRes.value.ok ? await amazonRes.value.text() : ''
+    const retailHtml = retailRes.status === 'fulfilled' && retailRes.value.ok ? await retailRes.value.text() : ''
+    const sdsHtml = sdsRes.status === 'fulfilled' && sdsRes.value.ok ? await sdsRes.value.text() : ''
 
-    const amazonUrls = extractUrls(amazonHtml, 3)
+    const retailUrls = extractUrls(retailHtml, 3)
+    const sdsUrls = extractUrls(sdsHtml, 2)
     const generalUrls = extractUrls(generalHtml, 4)
 
-    // Merge: Amazon-specific results first, then general (deduped)
+    // Prioritize preferred retail/trusted domains, then other results
     const seen = new Set<string>()
-    const candidateUrls: string[] = []
-    for (const url of [...amazonUrls, ...generalUrls]) {
-      if (!seen.has(url) && candidateUrls.length < 6) {
-        seen.add(url)
-        candidateUrls.push(url)
-      }
+    const preferredUrls: string[] = []
+    const otherUrls: string[] = []
+    for (const url of [...retailUrls, ...sdsUrls, ...generalUrls]) {
+      if (seen.has(url)) continue
+      seen.add(url)
+      if (PREFER_DOMAINS.some(d => url.includes(d))) preferredUrls.push(url)
+      else otherUrls.push(url)
     }
 
-    // If DDG didn't surface any Amazon URLs, inject a direct Amazon search
+    const candidateUrls = [...preferredUrls, ...otherUrls].slice(0, 7)
+
+    // Inject Walmart search if no preferred retail URL found — Walmart reliably lists ingredients
+    if (!candidateUrls.some(u => u.includes('walmart.com'))) {
+      candidateUrls.unshift(`https://www.walmart.com/search?q=${encodeURIComponent(productName)}`)
+    }
     if (!candidateUrls.some(u => u.includes('amazon.com'))) {
-      candidateUrls.unshift(`https://www.amazon.com/s?k=${encodeURIComponent(productName)}`)
+      candidateUrls.push(`https://www.amazon.com/s?k=${encodeURIComponent(productName)}`)
     }
 
     if (!candidateUrls.length) return null
 
-    // Try each URL through Jina Reader — prefer pages that actually mention ingredients
+    // Keywords that signal a page actually has ingredient/composition data
+    // Covers food, cosmetics, cleaning (composition/contains), fragrances, SDS documents
+    const INGREDIENT_KEYWORDS = ['ingredient', 'composition', 'contains:', 'active ingredient', 'inactive ingredient', 'formula', 'substance']
+
+    // Try each URL through Jina Reader — prefer pages with ingredient-related keywords
     let pageContent = ''
     let pageUrl = ''
     let fallbackContent = ''
@@ -216,7 +234,8 @@ async function webScrapeForIngredients(
         if (!jinaRes.ok) continue
         const text = await jinaRes.text()
         if (!text || text.length < 400) continue
-        if (text.toLowerCase().includes('ingredient')) {
+        const lower = text.toLowerCase()
+        if (INGREDIENT_KEYWORDS.some(kw => lower.includes(kw))) {
           pageContent = text
           pageUrl = url
           break
@@ -228,7 +247,6 @@ async function webScrapeForIngredients(
       } catch {}
     }
 
-    // Fall back to first usable page if none had "ingredient"
     if (!pageContent && fallbackContent) {
       pageContent = fallbackContent
       pageUrl = fallbackUrl
@@ -241,12 +259,15 @@ async function webScrapeForIngredients(
 
     console.log(`[extract] web scrape: fetched ${pageContent.length} chars from ${pageUrl}`)
 
-    // Smart content slicing: if ingredient section is deep in the page, focus on it
-    let contentForAI: string
+    // Smart content slicing: if ingredient section is deep, focus on that region
     const lowerContent = pageContent.toLowerCase()
-    const ingIdx = lowerContent.indexOf('ingredient')
-    if (ingIdx > 3000) {
-      const start = Math.max(0, ingIdx - 600)
+    const firstKwIdx = INGREDIENT_KEYWORDS.reduce((best, kw) => {
+      const i = lowerContent.indexOf(kw)
+      return i !== -1 && (best === -1 || i < best) ? i : best
+    }, -1)
+    let contentForAI: string
+    if (firstKwIdx > 3000) {
+      const start = Math.max(0, firstKwIdx - 600)
       contentForAI = pageContent.slice(start, start + 9000)
     } else {
       contentForAI = pageContent.slice(0, 9000)
@@ -259,6 +280,8 @@ Rules:
 - Only return ingredients if you can clearly identify an actual ingredient list (not product descriptions or marketing text)
 - Do NOT invent, guess, or hallucinate ingredients — if unsure, return null for ingredients
 - Include both active and inactive ingredients if both are present
+- For cleaning/household products: also extract "Composition", "Contains:", "Active Ingredients", or SDS ingredient sections
+- For fragrances/perfumes: extract the ingredient or composition list if present; if the page only lists scent notes or accords (e.g. "top notes: bergamot") rather than actual chemical ingredients, return null for ingredients
 - Return the ingredients as a single plain text string (comma-separated or as-is from the page)
 
 Page content:

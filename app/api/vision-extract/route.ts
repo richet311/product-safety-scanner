@@ -34,24 +34,19 @@ export async function POST(request: Request) {
             },
             {
               type: 'text',
-              text: `You are analyzing a product label photo to extract ingredient information.
-
-Return ONLY valid JSON with this exact schema:
+              text: `Extract product name and full ingredient list from this label photo. Return JSON:
 {"product_name": "brand and product name or null", "ingredients": "full ingredient list as text or null"}
 
-Instructions:
-- Search the ENTIRE image for any text that lists ingredients — it may be on the back, side, or bottom of the product
-- For food/beverages: extract the full "Ingredients:" section exactly as printed, including all sub-ingredients in parentheses
-- For medications/OTC drugs/first-aid antiseptics/eye drops: combine Active AND Inactive ingredients into one string, e.g. "Active: Acetaminophen 325mg. Inactive: gelatin, glycerin" or "Active: Carboxymethylcellulose sodium 0.5%. Inactive: boric acid, calcium chloride, magnesium chloride"
-- For cleaning and household products: extract ingredients, active ingredients, chemical composition, material/substance, or disinfectant actives exactly as printed
-- If the front label clearly states an active ingredient, concentration, chemical composition, or substance (for example "Isopropyl Alcohol 70%", "Hydrogen Peroxide 3%", "Sodium Hypochlorite", "Benzalkonium Chloride", or "Carboxymethylcellulose sodium 0.5%"), return that as ingredients even if there is no separate ingredient panel
-- For supplements: transcribe the complete Supplement Facts / Nutrition Facts panel including all listed ingredients
-- For cosmetics/personal care (including Korean, Japanese, Chinese beauty products): extract the full ingredient list (often starts with "Ingredients:", "성분", "全成分", or "成份")
-- Multilingual ingredients: if the ingredient list is in Korean, Japanese, or Chinese, translate each ingredient to its English INCI name. Examples: 정제수→Water, 글리세린→Glycerin, 나이아신아마이드→Niacinamide, 알로에베라잎추출물→Aloe Barbadensis Leaf Extract, 히알루론산→Sodium Hyaluronate, 판테놀→Panthenol, 병풀추출물→Centella Asiatica Extract
-- Product identification: always extract the brand and full product name from any visible text, logos, or packaging — critical for Korean/Japanese/Chinese products where the name may be in English even when ingredients are not
-- If the image shows only the front of the product and no ingredient, active ingredient, composition, chemical/substance, or material information is visible, set ingredients to null but still return the product name so it can be looked up in a database
-- Transcribe ALL text in the ingredient section — do not summarize or truncate
-- Return ONLY the JSON object, no other text`,
+- Search entire image (back, sides, bottom) for ingredient text
+- Food: full "Ingredients:" section with all sub-ingredients in parentheses
+- Medications/OTC/eye drops: combine Active AND Inactive into one string, e.g. "Active: Acetaminophen 325mg. Inactive: gelatin, glycerin"
+- Cleaning/household: extract ingredients, active ingredients, chemical composition, material/substance, or disinfectant actives
+- If front label states an active ingredient or concentration (e.g. "Isopropyl Alcohol 70%", "Hydrogen Peroxide 3%"), use that as ingredients
+- Supplements: complete Supplement Facts panel
+- Cosmetics/K-beauty/J-beauty: full ingredient list (may start with "성분", "全成分", "成份")
+- Korean/Japanese/Chinese ingredients: translate to English INCI names (정제수→Water, 글리세린→Glycerin, 나이아신아마이드→Niacinamide, 알로에베라잎추출물→Aloe Barbadensis Leaf Extract, 히알루론산→Sodium Hyaluronate, 판테놀→Panthenol, 병풀추출물→Centella Asiatica Extract)
+- If no ingredients visible, set ingredients to null but still return product_name
+- Transcribe ALL ingredient text — do not summarize or truncate`,
             },
           ] as ChatCompletionContentPart[],
         },
