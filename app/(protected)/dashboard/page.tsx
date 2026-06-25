@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ScanCard } from './ScanCard'
 import type { Scan } from './ScanCard'
 import { ActivityChart } from './ActivityChart'
+import { DailyUsage } from './DailyUsage'
 
 const DEFAULT_DAILY_LIMIT = 20
 
@@ -36,21 +37,13 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const [scansResult, usageResult, profileResult] = await Promise.all([
+  const [scansResult, profileResult] = await Promise.all([
     supabase
       .from('scans')
       .select('id, product_name, image_url, overall_grade, analysis, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(200),
-    supabase
-      .from('scan_events')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', today.toISOString()),
     supabase
       .from('profiles')
       .select('daily_scan_limit')
@@ -59,11 +52,7 @@ export default async function DashboardPage() {
   ])
 
   const scans: Scan[] = scansResult.data ?? []
-  const todayCount = usageResult.count ?? 0
   const dailyLimit = (profileResult.data as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? DEFAULT_DAILY_LIMIT
-  const remaining = dailyLimit - todayCount
-  const atLimit = todayCount >= dailyLimit
-  const usagePct = Math.min((remaining / dailyLimit) * 100, 100)
 
   const gradeScore = { A: 4, B: 3, C: 2, D: 1 } as const
   const gradeLetters = ['A', 'B', 'C', 'D'] as const
@@ -184,15 +173,6 @@ export default async function DashboardPage() {
           .stats-grid { grid-template-columns: 1fr; gap: 10px; }
         }
 
-        .usage-bar-fill {
-          height: 100%;
-          border-radius: 99px;
-          transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
-          background: ${atLimit
-            ? 'linear-gradient(90deg, #f97316, #ef4444)'
-            : 'linear-gradient(90deg, #00C37A, #00e896)'};
-        }
-
         .group-label {
           font-size: 11px;
           font-weight: 800;
@@ -269,18 +249,7 @@ export default async function DashboardPage() {
               }}>
                 Your Scans
               </h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '320px' }}>
-                <div style={{ flex: 1, height: '5px', background: '#f1f5f9', borderRadius: '99px', overflow: 'hidden' }}>
-                  <div className="usage-bar-fill" style={{ width: `${usagePct}%` }} />
-                </div>
-                <span style={{
-                  fontSize: '12px', fontWeight: 600,
-                  color: atLimit ? '#ef4444' : '#94a3b8',
-                  whiteSpace: 'nowrap', fontFamily: 'inherit',
-                }}>
-                  {atLimit ? 'Limit reached' : `${remaining} / ${dailyLimit} left today`}
-                </span>
-              </div>
+              <DailyUsage scans={scans} dailyLimit={dailyLimit} />
             </div>
             <Link href="/scanner" className="new-scan-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -360,7 +329,7 @@ export default async function DashboardPage() {
                         ? todayScans.length > 0
                           ? `Today · ${todayScans.length} scan${todayScans.length !== 1 ? 's' : ''}`
                           : 'Today · No scans yet'
-                        : group}
+                        : `${group} · ${grouped[group].length} scan${grouped[group].length !== 1 ? 's' : ''}`}
                     </p>
                     <div className="scan-grid">
                       {grouped[group].map(scan => (
