@@ -82,6 +82,10 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
     }))
   }
 
+  function showLess(dayKey: string) {
+    setVisibleCounts(prev => ({ ...prev, [dayKey]: PAGE_SIZE }))
+  }
+
   return (
     <div className="scan-history">
       <style>{`
@@ -215,6 +219,18 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
                       onClick={() => loadMore(group.key, group.count)}
                     >
                       Load 10 more ({remaining} remaining)
+                    </button>
+                  </div>
+                )}
+
+                {visibleScans.length > PAGE_SIZE && (
+                  <div className="load-more-row">
+                    <button
+                      type="button"
+                      className="load-more-btn"
+                      onClick={() => showLess(group.key)}
+                    >
+                      Show first 10
                     </button>
                   </div>
                 )}
