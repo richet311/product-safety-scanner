@@ -143,6 +143,14 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
   if (!data) notFound()
 
   const scan = data as Scan
+
+  // Resolve signed URL if image_url is a storage path (not a full https URL)
+  if (scan.image_url && !scan.image_url.startsWith('http')) {
+    const { data: signed } = await supabase.storage
+      .from('scan-images')
+      .createSignedUrl(scan.image_url, 3600)
+    scan.image_url = signed?.signedUrl ?? null
+  }
   const cfg = GRADE[scan.overall_grade]
   const userAlerts = scan.analysis?.user_alerts ?? []
   const { keyIngredients, concernIngredients, totalCount } = normalizeAnalysis(scan.analysis)

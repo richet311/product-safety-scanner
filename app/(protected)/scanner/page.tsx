@@ -172,8 +172,7 @@ export default function ScannerPage() {
           .from('scan-images')
           .upload(path, file, { cacheControl: '3600', upsert: false })
         if (!uploadError && uploadData) {
-          const { data: { publicUrl } } = supabase.storage.from('scan-images').getPublicUrl(uploadData.path)
-          imageUrl = publicUrl
+          imageUrl = uploadData.path
         }
       }
     }

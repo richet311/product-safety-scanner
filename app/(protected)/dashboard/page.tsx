@@ -59,9 +59,37 @@ export default async function DashboardPage() {
       .gte('created_at', twoDaysAgo),
   ])
 
-  const scans: Scan[] = scansResult.data ?? []
+  const rawScans = scansResult.data ?? []
   const scanEvents: { created_at: string }[] = eventsResult.data ?? []
   const dailyLimit = (profileResult.data as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? DEFAULT_DAILY_LIMIT
+
+  // Resolve signed URLs for scans that have a storage path (not a full https URL)
+  const imagePaths = rawScans
+    .map(s => s.image_url)
+    .filter((u): u is string => !!u && !u.startsWith('http'))
+  let signedUrlMap = new Map<string, string>()
+  if (imagePaths.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from('scan-images')
+      .createSignedUrls(imagePaths, 3600)
+    if (signed) {
+      signedUrlMap = new Map(
+        signed
+          .filter((item): item is typeof item & { path: string; signedUrl: string } =>
+            !!item.path && !!item.signedUrl
+          )
+          .map(item => [item.path, item.signedUrl])
+      )
+    }
+  }
+  const scans: Scan[] = rawScans.map(s => ({
+    ...s,
+    image_url: s.image_url
+      ? s.image_url.startsWith('http')
+        ? s.image_url
+        : (signedUrlMap.get(s.image_url) || null)
+      : null,
+  }))
 
   const gradeScore = { A: 4, B: 3, C: 2, D: 1 } as const
   const gradeLetters = ['A', 'B', 'C', 'D'] as const
