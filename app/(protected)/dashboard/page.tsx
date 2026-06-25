@@ -110,7 +110,7 @@ export default async function DashboardPage() {
   const todayScans = grouped['Today'] ?? []
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', overflowX: 'hidden' }}>
       <style>{`
         .dashboard-wrap {
           padding: 32px 20px 80px;

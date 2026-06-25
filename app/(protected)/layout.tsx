@@ -14,7 +14,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fffe' }}>
       <Sidebar displayName={displayName} avatarUrl={avatarUrl} />
-      <main style={{ flex: 1, overflow: 'auto', minWidth: 0, paddingBottom: '80px' }}>
+      <main style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', minWidth: 0, paddingBottom: '80px' }}>
         {children}
       </main>
     </div>
