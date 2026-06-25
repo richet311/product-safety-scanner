@@ -158,12 +158,17 @@ async function webScrapeForIngredients(
       `${productName} ingredients`,
       `"${productName}" ingredients`,
       `${productName} active ingredient composition`,
+      `${productName} inactive ingredients`,
+      `${productName} drug facts`,
+      `${productName} ophthalmic solution ingredients`,
+      `${productName} safety data sheet ingredients`,
       `${productName} product specifications`,
       `site:amazon.com ${productName} ingredients`,
       `site:amazon.com ${productName} specifications`,
       ...searchNames.slice(1).flatMap(name => [
         `${name} ingredients`,
         `${name} active ingredient composition`,
+        `${name} drug facts`,
         `site:amazon.com ${name} ingredients`,
       ]),
     ]
@@ -241,8 +246,14 @@ async function webScrapeForIngredients(
         'active ingredients',
         'inactive ingredients',
         'drug facts',
+        'active',
+        'inactive',
+        'ophthalmic',
+        'ophthalmic solution',
+        'sterile',
         'uses',
         'purpose',
+        'warnings',
         'important information',
         'about this item',
         'features & specs',
@@ -257,6 +268,11 @@ async function webScrapeForIngredients(
         'scent',
         'composition',
         'formula',
+        'chemical composition',
+        'safety data sheet',
+        'sds',
+        'disinfectant',
+        'antibacterial',
         'product details',
         'technical details',
         'details',
@@ -303,7 +319,7 @@ async function webScrapeForIngredients(
           url,
           text,
           hasRelevantText:
-            /ingredient|drug facts|important information|about this item|features (&|and) specs|product specifications|material|item form|composition|formula|technical details/i.test(text),
+            /ingredient|drug facts|ophthalmic|important information|about this item|features (&|and) specs|product specifications|material|item form|composition|formula|safety data sheet|sds|technical details/i.test(text),
         })
       } catch {}
     }
@@ -372,7 +388,7 @@ Rules:
 - Prefer direct product pages over search result snippets
 - Use search result snippets only when they directly name the target product and directly state ingredients, active ingredients, formula, material, or composition
 - On Amazon pages, inspect About this item, Features & Specs, See all product Specifications, Product specifications, Product details, Technical details, Drug Facts, and Important information; relevant ingredients/composition often appear there instead of in the title area
-- For OTC/first-aid/cleaning/household products, a specification like "Active ingredient: Isopropyl alcohol 70%" or "Material: sodium hypochlorite" is valid ingredient/composition evidence
+- For OTC/first-aid/eye drops/cleaning/household products, a specification like "Active ingredient: Isopropyl alcohol 70%", "Active: Carboxymethylcellulose sodium 0.5%", "Inactive ingredients: boric acid, sodium chloride", "Material: sodium hypochlorite", or SDS composition data is valid ingredient/composition evidence
 - Do not treat product benefits, claims, directions, warnings, size, scent, or packaging details as ingredients unless they directly name a substance or active ingredient
 - Do not use ingredients for a different product, variant, scent, size, or sponsored/related listing
 - Do NOT invent, guess, or hallucinate ingredients; if unsure, return null for ingredients
@@ -446,31 +462,82 @@ function buildProductSearchQueries(query: string): string[] {
   return variants
 }
 
-function extractObviousActiveIngredientFromName(
+function cleanActiveSubstancePhrase(raw: string): string | null {
+  const normalized = raw
+    .replace(/[^a-z0-9+./'\-\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!normalized) return null
+
+  const stopWords =
+    /\b(?:active|ingredient|ingredients|drug|facts|first|aid|antiseptic|treatment|minor|cuts|scrapes|burns|unscented|pack|previously|facial|exfoliating|spray|whiteheads|pores|uneven|skin|korean|care|cleaner|cleaning|disinfectant|sanitizer|bleach|household|surface|wipes?|solution|ophthalmic|eye|drops?|lubricant|sterile|redness|relief|allergy|preservative|free|maximum|extra|strength|fl|oz|ounces?|ml|for|and|with|the|a|an)\b/i
+  const ingredientSignal =
+    /\b(?:acid|alcohol|peroxide|chloride|chlorite|hypochlorite|sodium|potassium|calcium|magnesium|cellulose|carboxymethylcellulose|hypromellose|benzalkonium|glycol|glycerin|glycerol|ethanol|isopropyl|ammonium|povidone|iodine|ketotifen|olopatadine|naphazoline|tetrahydrozoline|polyethylene|propylene|boric|salicylic|glycolic|lactic|benzoyl|chloroxylenol|retinol|niacinamide|hyaluronic)\b/i
+
+  const parts = normalized
+    .split(stopWords)
+    .map(part => part.trim())
+    .filter(part => part.length >= 3)
+
+  const candidates = parts.length ? parts : [normalized]
+  const best = candidates
+    .map(part => ({
+      part,
+      score:
+        (ingredientSignal.test(part) ? 10 : 0) -
+        Math.max(0, part.split(/\s+/).length - 5),
+    }))
+    .sort((a, b) => b.score - a.score)[0]?.part
+
+  if (!best || !ingredientSignal.test(best)) return null
+
+  return best
+    .split(/\s+/)
+    .slice(0, 6)
+    .map(word => {
+      if (/^(aha|bha|ph)$/i.test(word)) return word.toUpperCase()
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
+    .join(' ')
+}
+
+function formatActiveUnit(unit: string): string {
+  const compact = unit.replace(/\s+/g, '').toLowerCase()
+  if (compact === '%') return '%'
+  if (compact === 'mg/ml') return 'mg/mL'
+  if (compact === 'mcg/ml') return 'mcg/mL'
+  return compact
+}
+
+function extractLabelActiveIngredientFromName(
   query: string
 ): { product_name: string; ingredients: string } | null {
   const normalized = normalizeSearchText(query)
   const lower = normalized.toLowerCase()
+  const hasActiveContext =
+    /\b(active ingredient|drug facts|antiseptic|first aid|ophthalmic|eye drops?|lubricant eye|medicated|disinfectant|sanitizer|cleaner|cleaning|bleach|household|surface|wipes?|sterile)\b/i.test(lower)
+  if (!hasActiveContext) return null
 
-  const isopropylMatch =
-    lower.match(/\b(\d{2,3}(?:\.\d+)?)\s*%\s*isopropyl alcohol\b/) ??
-    lower.match(/\bisopropyl alcohol\s*(\d{2,3}(?:\.\d+)?)\s*%/) ??
-    lower.match(/\b(\d{2,3}(?:\.\d+)?)\s+isopropyl alcohol\b/) ??
-    lower.match(/\bisopropyl alcohol\s+(\d{2,3}(?:\.\d+)?)\b/)
-  if (isopropylMatch && (lower.includes('antiseptic') || lower.includes('first aid') || lower.includes('alcohol'))) {
+  const amount = String.raw`(\d{1,3}(?:\.\d+)?)`
+  const unit = String.raw`(%|mg\s*\/\s*ml|mcg\s*\/\s*ml|ppm|mg|mcg|g)`
+  const phrase = String.raw`([a-z][a-z0-9+./'\-]*(?:\s+[a-z][a-z0-9+./'\-]*){0,7})`
+  const patterns = [
+    new RegExp(String.raw`\b${amount}\s*${unit}\s+${phrase}`, 'i'),
+    new RegExp(String.raw`\b${phrase}\s+${amount}\s*${unit}\b`, 'i'),
+  ]
+
+  for (const [index, pattern] of patterns.entries()) {
+    const match = normalized.match(pattern)
+    if (!match) continue
+
+    const concentration = index === 0 ? match[1] : match[2]
+    const concentrationUnit = formatActiveUnit(index === 0 ? match[2] : match[3])
+    const substance = cleanActiveSubstancePhrase(index === 0 ? match[3] : match[1])
+    if (!substance) continue
+
     return {
       product_name: normalized,
-      ingredients: `Active ingredient: Isopropyl alcohol ${isopropylMatch[1]}%`,
-    }
-  }
-
-  const hydrogenPeroxideMatch =
-    lower.match(/\b(\d{1,2}(?:\.\d+)?)\s*%\s*hydrogen peroxide\b/) ??
-    lower.match(/\bhydrogen peroxide\s*(\d{1,2}(?:\.\d+)?)\s*%/)
-  if (hydrogenPeroxideMatch && lower.includes('antiseptic')) {
-    return {
-      product_name: normalized,
-      ingredients: `Active ingredient: Hydrogen peroxide ${hydrogenPeroxideMatch[1]}%`,
+      ingredients: `Active ingredient: ${substance} ${concentration}${concentrationUnit === '%' ? '%' : ` ${concentrationUnit}`}`,
     }
   }
 
@@ -600,7 +667,7 @@ async function fetchProductByName(
   const queries = buildProductSearchQueries(query)
 
   for (const searchQuery of queries) {
-    const obviousActiveIngredient = extractObviousActiveIngredientFromName(searchQuery)
+    const obviousActiveIngredient = extractLabelActiveIngredientFromName(searchQuery)
     if (obviousActiveIngredient) return obviousActiveIngredient
   }
 
