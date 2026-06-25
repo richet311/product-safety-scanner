@@ -3,6 +3,8 @@ import type { ChatCompletionContentPart } from 'groq-sdk/resources/chat/completi
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+export const maxDuration = 60
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 export async function POST(request: Request) {
@@ -54,7 +56,7 @@ Instructions:
       ],
       response_format: { type: 'json_object' },
       temperature: 0,
-      max_tokens: 1024,
+      max_tokens: 2048,
     })
 
     const content = completion.choices[0]?.message?.content

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 
@@ -83,6 +83,10 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function ScannerPage() {
   const [tab, setTab] = useState<Tab>('barcode')
+  useEffect(() => {
+    const saved = sessionStorage.getItem('scanner_last_tab')
+    if (saved === 'label' || saved === 'barcode') setTab(saved)
+  }, [])
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [extractState, setExtractState] = useState<ExtractState>({ status: 'idle' })
@@ -158,6 +162,7 @@ export default function ScannerPage() {
     }
 
     if (json.id) {
+      sessionStorage.setItem('scanner_last_tab', tab)
       window.location.href = `/scan/${json.id}`
     } else {
       setInlineResult({ analysis: json.analysis, productName: productName || 'Product Analysis', saveError: json._save_error })

@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { callAI } from '@/lib/ai-providers'
+
+export const maxDuration = 60
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -138,6 +141,101 @@ function extractOpenFDAIngredients(
   return { product_name: productName, ingredients }
 }
 
+// Web scraping fallback: DuckDuckGo search → Jina Reader → AI extraction
+async function webScrapeForIngredients(
+  productName: string
+): Promise<{ product_name: string; ingredients: string } | null> {
+  try {
+    // Step 1: Search DuckDuckGo HTML for the product + "ingredients"
+    const query = encodeURIComponent(`${productName} ingredients`)
+    const ddgRes = await fetch(`https://html.duckduckgo.com/html/?q=${query}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(6000),
+    })
+    if (!ddgRes.ok) return null
+    const html = await ddgRes.text()
+
+    // Step 2: Extract top result URLs from DuckDuckGo HTML (encoded in uddg= param)
+    const urlMatches = [...html.matchAll(/uddg=([^"&\s]+)/g)]
+    const candidateUrls: string[] = []
+    for (const m of urlMatches) {
+      try {
+        const decoded = decodeURIComponent(m[1])
+        // Skip wikis, DDG itself, and social media — prefer product/pharmacy/brand sites
+        if (
+          decoded.startsWith('http') &&
+          !decoded.includes('duckduckgo.com') &&
+          !decoded.includes('wikipedia.org') &&
+          !decoded.includes('twitter.com') &&
+          !decoded.includes('facebook.com') &&
+          !decoded.includes('reddit.com') &&
+          candidateUrls.length < 4
+        ) {
+          candidateUrls.push(decoded)
+        }
+      } catch {}
+    }
+    if (!candidateUrls.length) {
+      console.warn('[extract] web scrape: no URLs found in DDG results')
+      return null
+    }
+
+    // Step 3: Try each URL through Jina Reader until we get usable content
+    let pageContent = ''
+    let pageUrl = ''
+    for (const url of candidateUrls) {
+      try {
+        const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
+          headers: { 'Accept': 'text/plain', 'X-Return-Format': 'text' },
+          signal: AbortSignal.timeout(8000),
+        })
+        if (!jinaRes.ok) continue
+        const text = await jinaRes.text()
+        // Need at least 400 chars of real content
+        if (text && text.length > 400) {
+          pageContent = text
+          pageUrl = url
+          break
+        }
+      } catch {}
+    }
+    if (!pageContent) {
+      console.warn('[extract] web scrape: Jina Reader returned no usable content')
+      return null
+    }
+
+    console.log(`[extract] web scrape: fetched ${pageContent.length} chars from ${pageUrl}`)
+
+    // Step 4: Use AI to extract ingredient list from the page text
+    const extractPrompt = `From the following product page content, find and extract the complete ingredient list for "${productName}".
+Return ONLY valid JSON with this exact schema:
+{"product_name": "exact product name as shown on the page, or null", "ingredients": "full ingredient list as plain text, or null"}
+Rules:
+- Only return ingredients if you can clearly identify an actual ingredient list (not product descriptions or marketing text)
+- Do NOT invent, guess, or hallucinate ingredients — if unsure, return null for ingredients
+- Include both active and inactive ingredients if both are present
+- Return the ingredients as a single plain text string (comma-separated or as-is from the page)
+
+Page content:
+${pageContent.slice(0, 5000)}`
+
+    const aiContent = await callAI(extractPrompt, 1024)
+    const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
+
+    if (!parsed.ingredients || parsed.ingredients.trim().length < 5) return null
+    return {
+      product_name: parsed.product_name ?? productName,
+      ingredients: parsed.ingredients,
+    }
+  } catch (err) {
+    console.warn('[extract] web scrape failed:', err)
+    return null
+  }
+}
+
 type BarcodeMatch = { product_name?: string; ingredients: string; product_image_url?: string; source: string }
 
 function normalizeProductName(name: string | undefined): string {
@@ -224,6 +322,7 @@ async function lookupBarcode(barcode: string) {
         return NextResponse.json({ barcode, product_name: productName, ingredients, product_image_url: productImageUrl })
       }
       if (productName && !foundName) foundName = productName
+      if (productImageUrl && !foundImageUrl) foundImageUrl = productImageUrl
     }
   } catch {}
 
@@ -235,7 +334,7 @@ async function lookupBarcode(barcode: string) {
     }
   }
 
-  // 7. Last resort: name search across all Open*Facts networks
+  // 7. Name search across all Open*Facts networks + web scraping fallback
   if (foundName) {
     const nameSearch = await fetchProductByName(foundName)
     if (nameSearch) {
@@ -271,6 +370,10 @@ async function fetchProductByName(
   const fdaResult = await lookupOpenFDAByName(query)
   if (fdaResult) return { ...fdaResult }
 
+  // Web scraping fallback — search the web and extract ingredients via AI
+  const webResult = await webScrapeForIngredients(query)
+  if (webResult) return webResult
+
   return null
 }
 
@@ -279,7 +382,7 @@ async function searchProductByName(query: string) {
   if (result) return NextResponse.json(result)
 
   return NextResponse.json(
-    { error: `Couldn't find "${query}" in our database. Try scanning the barcode instead.`, product_name: query },
+    { error: `Couldn't find "${query}" in our database. Try scanning the barcode or photographing the ingredient label directly.`, product_name: query },
     { status: 404 }
   )
 }
