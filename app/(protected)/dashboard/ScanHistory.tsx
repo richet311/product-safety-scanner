@@ -19,6 +19,13 @@ type DayGroup = {
   scans: Scan[]
 }
 
+type DeleteConfirmation = {
+  ids: string[]
+  title: string
+  message: string
+  confirmLabel: string
+} | null
+
 function localDateKey(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -96,6 +103,7 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
   const [concernFilter, setConcernFilter] = useState<ConcernFilter>('all')
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation>(null)
   const [isPending, startTransition] = useTransition()
 
   const normalizedSearch = search.trim().toLowerCase()
@@ -159,20 +167,36 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
     })
   }
 
-  function selectVisible(scansToSelect: Scan[]) {
+  function toggleVisibleSelection(scansToToggle: Scan[]) {
     setSelectionMode(true)
     setSelectedIds(prev => {
       const next = new Set(prev)
-      for (const scan of scansToSelect) next.add(scan.id)
+      const allVisibleSelected = scansToToggle.every(scan => next.has(scan.id))
+
+      for (const scan of scansToToggle) {
+        if (allVisibleSelected) {
+          next.delete(scan.id)
+        } else {
+          next.add(scan.id)
+        }
+      }
+
       return next
     })
   }
 
-  function deleteIds(ids: string[], message: string) {
-    if (ids.length === 0 || !window.confirm(message)) return
+  function requestDelete(ids: string[], title: string, message: string, confirmLabel: string) {
+    if (ids.length === 0) return
+    setDeleteConfirmation({ ids, title, message, confirmLabel })
+  }
+
+  function confirmDelete() {
+    if (!deleteConfirmation) return
+    const ids = deleteConfirmation.ids
 
     startTransition(() => {
       void deleteScans(ids).then(() => {
+        setDeleteConfirmation(null)
         resetSelection()
         router.refresh()
       })
@@ -338,6 +362,29 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
         .select-card-shell {
           position: relative;
         }
+        .select-card-shell.is-selected::after {
+          content: '';
+          position: absolute;
+          inset: -3px;
+          border-radius: 23px;
+          border: 2px solid #00C37A;
+          pointer-events: none;
+          z-index: 3;
+        }
+        .select-card-hitbox {
+          position: absolute;
+          inset: 0;
+          z-index: 4;
+          border: 0;
+          background: transparent;
+          border-radius: 20px;
+          cursor: pointer;
+          padding: 0;
+        }
+        .select-card-hitbox:focus-visible {
+          outline: 3px solid rgba(0,195,122,0.45);
+          outline-offset: 3px;
+        }
         .scan-select {
           position: absolute;
           z-index: 5;
@@ -352,7 +399,7 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          cursor: pointer;
+          pointer-events: none;
           color: transparent;
         }
         .scan-select.selected {
@@ -385,6 +432,85 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
           background: #fff;
           border: 1.5px dashed #e2e8f0;
           text-align: center;
+        }
+        .confirm-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 3000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          background: rgba(15,23,42,0.45);
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
+          animation: confirmFadeIn 0.16s ease;
+        }
+        .confirm-modal {
+          width: min(100%, 390px);
+          border-radius: 24px;
+          background: #fff;
+          box-shadow: 0 24px 80px rgba(15,23,42,0.22);
+          padding: 26px;
+          animation: confirmScaleIn 0.2s cubic-bezier(0.16,1,0.3,1);
+        }
+        .confirm-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: rgba(239,68,68,0.1);
+          color: #ef4444;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+        .confirm-title {
+          margin: 0 0 8px;
+          color: #0f172a;
+          font-size: 18px;
+          font-weight: 800;
+        }
+        .confirm-message {
+          margin: 0 0 24px;
+          color: #64748b;
+          font-size: 14px;
+          line-height: 1.55;
+        }
+        .confirm-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .confirm-button {
+          min-height: 44px;
+          border-radius: 999px;
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .confirm-button.cancel {
+          border: 1.5px solid #e2e8f0;
+          background: #fff;
+          color: #475569;
+        }
+        .confirm-button.danger {
+          border: 0;
+          background: #ef4444;
+          color: #fff;
+        }
+        .confirm-button:disabled {
+          cursor: not-allowed;
+          opacity: 0.65;
+        }
+        @keyframes confirmFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes confirmScaleIn {
+          from { opacity: 0; transform: translateY(10px) scale(0.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @media (max-width: 560px) {
           .history-filters {
@@ -457,6 +583,7 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
           const allDayScans = allDayGroupByKey.get(group.key)?.scans ?? group.scans
           const selectedInDay = group.scans.filter(scan => selectedIds.has(scan.id))
           const selectedCount = selectedInDay.length
+          const allVisibleSelected = visibleScans.length > 0 && visibleScans.every(scan => selectedIds.has(scan.id))
 
           return (
             <section key={group.key}>
@@ -500,9 +627,9 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
                           <button
                             type="button"
                             className="history-action"
-                            onClick={() => selectVisible(visibleScans)}
+                            onClick={() => toggleVisibleSelection(visibleScans)}
                           >
-                            Select visible
+                            {allVisibleSelected ? 'Unselect visible' : 'Select visible'}
                           </button>
                           <button
                             type="button"
@@ -516,9 +643,11 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
                             className="history-action danger"
                             disabled={selectedCount === 0 || isPending}
                             onClick={() =>
-                              deleteIds(
+                              requestDelete(
                                 selectedInDay.map(scan => scan.id),
-                                `Delete ${selectedCount} selected scan${selectedCount === 1 ? '' : 's'} from ${group.label}?`
+                                'Delete selected scans?',
+                                `This will permanently remove ${selectedCount} selected scan${selectedCount === 1 ? '' : 's'} from ${group.label}.`,
+                                'Delete selected'
                               )
                             }
                           >
@@ -531,9 +660,11 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
                         className="history-action danger"
                         disabled={allDayScans.length === 0 || isPending}
                         onClick={() =>
-                          deleteIds(
+                          requestDelete(
                             allDayScans.map(scan => scan.id),
-                            `Delete all ${allDayScans.length} scan${allDayScans.length === 1 ? '' : 's'} from ${group.label}? This will not affect other days.`
+                            `Delete ${group.label}?`,
+                            `This will permanently remove all ${allDayScans.length} scan${allDayScans.length === 1 ? '' : 's'} from ${group.label}. Other days will not be affected.`,
+                            'Delete day'
                           )
                         }
                       >
@@ -545,18 +676,25 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
                       {visibleScans.map(scan => {
                         const isSelected = selectedIds.has(scan.id)
                         return (
-                          <div key={scan.id} className="select-card-shell">
+                          <div
+                            key={scan.id}
+                            className={`select-card-shell ${isSelected ? 'is-selected' : ''}`}
+                          >
                             {selectionMode && (
-                              <button
-                                type="button"
-                                className={`scan-select ${isSelected ? 'selected' : ''}`}
-                                aria-label={isSelected ? 'Deselect scan' : 'Select scan'}
-                                onClick={() => toggleScan(scan.id)}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  className="select-card-hitbox"
+                                  aria-label={isSelected ? 'Deselect scan' : 'Select scan'}
+                                  aria-pressed={isSelected}
+                                  onClick={() => toggleScan(scan.id)}
+                                />
+                                <span className={`scan-select ${isSelected ? 'selected' : ''}`} aria-hidden="true">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                </span>
+                              </>
                             )}
                             <ScanCard scan={scan} />
                           </div>
@@ -591,6 +729,57 @@ export function ScanHistory({ scans }: { scans: Scan[] }) {
           <Link href="/scanner" className="new-scan-btn" style={{ padding: '8px 18px', fontSize: '13px' }}>
             Scan Now
           </Link>
+        </div>
+      )}
+
+      {deleteConfirmation && (
+        <div
+          className="confirm-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!isPending) setDeleteConfirmation(null)
+          }}
+        >
+          <div
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirm-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="confirm-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            </div>
+            <h2 id="delete-confirm-title" className="confirm-title">
+              {deleteConfirmation.title}
+            </h2>
+            <p className="confirm-message">
+              {deleteConfirmation.message} This action cannot be undone.
+            </p>
+            <div className="confirm-actions">
+              <button
+                type="button"
+                className="confirm-button cancel"
+                disabled={isPending}
+                onClick={() => setDeleteConfirmation(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="confirm-button danger"
+                disabled={isPending}
+                onClick={confirmDelete}
+              >
+                {isPending ? 'Deleting...' : deleteConfirmation.confirmLabel}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
