@@ -42,7 +42,7 @@ function LegalFooter() {
 }
 
 export default function TermsOfServicePage() {
-  const lastUpdated = 'June 24, 2026'
+  const lastUpdated = 'June 25, 2026'
 
   return (
     <div className="min-h-screen bg-white">
@@ -73,9 +73,11 @@ export default function TermsOfServicePage() {
             <p>
               Surfelt is an AI-powered product ingredient analysis tool. It allows users to scan product
               barcodes, photograph ingredient labels, or search by product name to receive an AI-generated
-              safety analysis grading each ingredient on a scale of A to D. Results are for
+              safety analysis grading each ingredient on a scale of A to D. Supported product types
+              include food and beverages, medications and supplements, cosmetics and skincare, cleaning
+              and household products, and fragrances and personal care products. Results are for
               <strong className="text-gray-800"> informational purposes only</strong> and do not
-              constitute medical, dietary, dermatological, or any other professional advice.
+              constitute medical, dietary, dermatological, toxicological, or any other professional advice.
             </p>
           </section>
 
@@ -120,12 +122,38 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-black text-gray-900 mb-3">6. AI Accuracy Disclaimer</h2>
+            <h2 className="text-lg font-black text-gray-900 mb-3">6. AI Accuracy and Third-Party Data Disclaimer</h2>
             <p>
               AI-generated analyses may be incomplete, inaccurate, or out of date. Product formulations
               change, and regulatory classifications vary by jurisdiction. Surfelt makes no representation
               or warranty about the accuracy, completeness, or reliability of any analysis result. You
               rely on any analysis at your own risk.
+            </p>
+            <p className="mt-3">
+              For barcode and name-based product lookups, ingredient information is retrieved from public
+              product databases (including Open Food Facts, Open Beauty Facts, and Nutritionix), publicly
+              accessible websites, and Safety Data Sheets. This data is provided as-is. We are not
+              affiliated with these sources and cannot verify or guarantee the accuracy, completeness, or
+              currency of data retrieved from them.
+            </p>
+            <p className="mt-3">
+              For fragrance and perfume products, ingredient formulas are legally protected trade secrets
+              in many jurisdictions. Brands are generally only required to disclose known allergens. The
+              ingredient list for such products may be limited or may list "Fragrance" or "Parfum" as a
+              single entry covering many undisclosed compounds. Surfelt cannot display ingredient
+              information beyond what is publicly available.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-black text-gray-900 mb-3">6a. Cleaning and Household Products</h2>
+            <p>
+              When Surfelt is used to analyze cleaning products, disinfectants, or other household
+              chemicals, the results are for general informational awareness only. Always follow the
+              manufacturer's instructions, safety warnings, and hazard labels on the product packaging.
+              Do not use Surfelt's analysis to override or disregard any product warning label. These
+              products are not intended for ingestion, and nothing in Surfelt's analysis should be
+              interpreted as guidance on safe consumption or alternative use of any such product.
             </p>
           </section>
 
@@ -153,12 +181,19 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-black text-gray-900 mb-3">9. Third-Party Services</h2>
+            <h2 className="text-lg font-black text-gray-900 mb-3">9. Third-Party Services and Data Sources</h2>
             <p>
               Surfelt uses third-party services including Supabase, Groq, Cerebras, SambaNova, and
               Google. Ingredient text and product images you submit are sent to one or more of these
               AI providers for processing. Your use of the Service is also subject to those providers'
               terms of service. We are not responsible for the practices of third-party services.
+            </p>
+            <p className="mt-3">
+              To retrieve ingredient information for products, Surfelt may query public product databases
+              (Open Food Facts, Open Beauty Facts, Nutritionix), publicly accessible retail websites,
+              and publicly available Safety Data Sheets. Surfelt is not affiliated with these sources.
+              Ingredient data retrieved from them is used solely to provide the Service and is not
+              resold or redistributed. We do not warrant that this data is accurate or complete.
             </p>
           </section>
 

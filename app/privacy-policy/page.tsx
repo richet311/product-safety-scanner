@@ -42,7 +42,7 @@ function LegalFooter() {
 }
 
 export default function PrivacyPolicyPage() {
-  const lastUpdated = 'June 24, 2026'
+  const lastUpdated = 'June 25, 2026'
 
   return (
     <div className="min-h-screen bg-white">
@@ -99,6 +99,15 @@ export default function PrivacyPolicyPage() {
               ingredient text via AI vision analysis.
             </p>
 
+            <h3 className="text-base font-bold text-gray-800 mb-2 mt-4">Shared Product Cache</h3>
+            <p>
+              When you scan a product, the product name and ingredient text may be stored in a shared
+              product ingredient cache that is accessible to all authenticated Surfelt users. This cache
+              contains only product data. It does not include your name, email address, health profile,
+              or any information that identifies you personally. Its purpose is to improve lookup speed
+              and accuracy for future scans of the same product by any user.
+            </p>
+
             <h3 className="text-base font-bold text-gray-800 mb-2 mt-4">Usage Data</h3>
             <p>
               We record a timestamp each time you perform a scan for the purpose of enforcing daily usage
@@ -112,6 +121,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-5 space-y-2">
               <li>To provide and personalize the ingredient safety analysis service.</li>
               <li>To save your scan history so you can review past results on your dashboard.</li>
+              <li>To store product names and ingredient text in the shared product cache so future scans of the same product by any user are faster and more reliable. No personal data is included in this cache.</li>
               <li>To enforce per-account daily scan limits.</li>
               <li>To improve the accuracy and quality of AI-generated analyses (in aggregate, without identifying you).</li>
               <li>To send transactional communications related to your account if necessary.</li>
@@ -156,6 +166,22 @@ export default function PrivacyPolicyPage() {
               <li>
                 <strong className="text-gray-800">Vercel</strong>: hosts our web application. Vercel may
                 collect standard web server logs (IP addresses, request metadata) as part of hosting.
+              </li>
+              <li>
+                <strong className="text-gray-800">Jina AI</strong>: a web content retrieval service used
+                to extract publicly available product ingredient information from third-party websites.
+                No personal data is sent to Jina AI; only product search queries are transmitted.
+              </li>
+              <li>
+                <strong className="text-gray-800">Open Food Facts and Open Beauty Facts</strong>: open,
+                community-maintained product databases used for barcode-based ingredient lookups. These
+                are public databases. No personal data is transmitted to them; only product barcode
+                numbers are queried.
+              </li>
+              <li>
+                <strong className="text-gray-800">Nutritionix</strong>: a food and nutrition database
+                used as a supplemental source for barcode-based product lookups. No personal data is
+                sent to Nutritionix; only product barcode numbers are queried.
               </li>
             </ul>
           </section>

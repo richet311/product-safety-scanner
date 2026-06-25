@@ -521,9 +521,13 @@ export default function SettingsPage() {
   const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([])
   const [healthConds, setHealthConds] = useState<string[]>([])
 
+  const [originalAllergies, setOriginalAllergies] = useState<string[]>([])
+  const [originalDietaryPrefs, setOriginalDietaryPrefs] = useState<string[]>([])
+  const [originalHealthConds, setOriginalHealthConds] = useState<string[]>([])
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<string | null>(null)
   const [showSaveConfirm, setShowSaveConfirm] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -564,6 +568,9 @@ export default function SettingsPage() {
         setAllergies(data.allergies ?? [])
         setDietaryPrefs(data.dietary_preferences ?? [])
         setHealthConds(data.health_conditions ?? [])
+        setOriginalAllergies(data.allergies ?? [])
+        setOriginalDietaryPrefs(data.dietary_preferences ?? [])
+        setOriginalHealthConds(data.health_conditions ?? [])
         if (data.weight_kg != null) {
           setWeightKg(data.weight_kg)
           setWeightDisplay(kgToDisplay(data.weight_kg, 'kg'))
@@ -676,9 +683,15 @@ export default function SettingsPage() {
 
   async function performSave() {
     setSaving(true)
-    setSaved(false)
+    setSaveStatus(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    const sort = (a: string[]) => JSON.stringify([...a].sort())
+    const healthChanged =
+      sort(allergies) !== sort(originalAllergies) ||
+      sort(dietaryPrefs) !== sort(originalDietaryPrefs) ||
+      sort(healthConds) !== sort(originalHealthConds)
 
     await supabase.from('profiles').upsert({
       id: user.id,
@@ -697,9 +710,17 @@ export default function SettingsPage() {
     })
 
     setOriginalUsername(username)
+    setOriginalAllergies(allergies)
+    setOriginalDietaryPrefs(dietaryPrefs)
+    setOriginalHealthConds(healthConds)
+
+    if (healthChanged) {
+      void fetch('/api/reanalyze-profile', { method: 'POST' })
+    }
+
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setSaveStatus(healthChanged ? 'Saved! Refreshing past scan grades.' : 'Saved!')
+    setTimeout(() => setSaveStatus(null), 5000)
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -1240,12 +1261,12 @@ export default function SettingsPage() {
           <button type="submit" className="save-btn" disabled={saving}>
             {saving ? 'Saving…' : 'Save Changes'}
           </button>
-          {saved && (
+          {saveStatus && (
             <span style={{ fontSize: '14px', color: '#00C37A', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 6L9 17l-5-5" />
               </svg>
-              Saved!
+              {saveStatus}
             </span>
           )}
         </div>
