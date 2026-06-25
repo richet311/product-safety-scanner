@@ -200,9 +200,11 @@ async function webScrapeForIngredients(
 
     if (!candidateUrls.length) return null
 
-    // Try each URL through Jina Reader until we get usable content
+    // Try each URL through Jina Reader — prefer pages that actually mention ingredients
     let pageContent = ''
     let pageUrl = ''
+    let fallbackContent = ''
+    let fallbackUrl = ''
     for (const url of candidateUrls) {
       try {
         const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
@@ -211,12 +213,23 @@ async function webScrapeForIngredients(
         })
         if (!jinaRes.ok) continue
         const text = await jinaRes.text()
-        if (text && text.length > 400) {
+        if (!text || text.length < 400) continue
+        if (text.toLowerCase().includes('ingredient')) {
           pageContent = text
           pageUrl = url
           break
         }
+        if (!fallbackContent) {
+          fallbackContent = text
+          fallbackUrl = url
+        }
       } catch {}
+    }
+
+    // Fall back to first usable page if none had "ingredient"
+    if (!pageContent && fallbackContent) {
+      pageContent = fallbackContent
+      pageUrl = fallbackUrl
     }
 
     if (!pageContent) {
@@ -225,6 +238,17 @@ async function webScrapeForIngredients(
     }
 
     console.log(`[extract] web scrape: fetched ${pageContent.length} chars from ${pageUrl}`)
+
+    // Smart content slicing: if ingredient section is deep in the page, focus on it
+    let contentForAI: string
+    const lowerContent = pageContent.toLowerCase()
+    const ingIdx = lowerContent.indexOf('ingredient')
+    if (ingIdx > 3000) {
+      const start = Math.max(0, ingIdx - 600)
+      contentForAI = pageContent.slice(start, start + 9000)
+    } else {
+      contentForAI = pageContent.slice(0, 9000)
+    }
 
     const extractPrompt = `From the following product page content, find and extract the complete ingredient list for "${productName}".
 Return ONLY valid JSON with this exact schema:
@@ -236,7 +260,7 @@ Rules:
 - Return the ingredients as a single plain text string (comma-separated or as-is from the page)
 
 Page content:
-${pageContent.slice(0, 5000)}`
+${contentForAI}`
 
     const aiContent = await callAI(extractPrompt, 1024)
     const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }

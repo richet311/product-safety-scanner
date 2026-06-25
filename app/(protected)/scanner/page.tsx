@@ -81,6 +81,18 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   },
 ]
 
+function getResetInStr() {
+  const now = new Date()
+  const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+  const diff = nextMidnight.getTime() - now.getTime()
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  if (h === 0 && m < 2) return 'in just a moment'
+  if (h === 0) return `in ${m} minute${m !== 1 ? 's' : ''}`
+  if (m < 5) return `in ${h} hour${h !== 1 ? 's' : ''}`
+  return `in ${h}h ${m}m`
+}
+
 export default function ScannerPage() {
   const [tab, setTab] = useState<Tab>('barcode')
   useEffect(() => {
@@ -96,12 +108,34 @@ export default function ScannerPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [inlineResult, setInlineResult] = useState<{ analysis: AnalysisResult; productName: string; saveError?: string } | null>(null)
   const [captureMode, setCaptureMode] = useState<'barcode' | 'label' | null>(null)
+  const [limitInfo, setLimitInfo] = useState<{ used: number; limit: number } | null>(null)
   const captureModeRef = useRef<'barcode' | 'label' | null>(null)
   captureModeRef.current = captureMode
 
   const barcodeUploadRef = useRef<HTMLInputElement>(null)
   const labelUploadRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+
+  const atDailyLimit = limitInfo ? limitInfo.used >= limitInfo.limit : false
+
+  useEffect(() => {
+    async function checkDailyLimit() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const todayUTC = new Date()
+      todayUTC.setUTCHours(0, 0, 0, 0)
+      const [{ count }, { data: profile }] = await Promise.all([
+        supabase.from('scan_events').select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id).gte('created_at', todayUTC.toISOString()),
+        supabase.from('profiles').select('daily_scan_limit').eq('id', user.id).single(),
+      ])
+      setLimitInfo({
+        used: count ?? 0,
+        limit: (profile as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? 20,
+      })
+    }
+    checkDailyLimit()
+  }, [])
 
   function switchTab(t: Tab) {
     setTab(t)
@@ -149,11 +183,15 @@ export default function ScannerPage() {
 
     const json = await res.json()
     if (!res.ok) {
+      if (res.status === 429) {
+        setLimitInfo(prev => prev ? { ...prev, used: prev.limit } : null)
+      }
       setError(json.error ?? 'Scan failed. Please try again.')
       setExtractState({ status: 'idle' })
       setLoading(false)
       return
     }
+    setLimitInfo(prev => prev ? { ...prev, used: prev.used + 1 } : null)
 
     setExtractState({ status: 'loading', message: 'Saving to history…', step: file ? 3 : 2, totalSteps: file ? 3 : 2 })
 
@@ -521,6 +559,32 @@ export default function ScannerPage() {
           </p>
         </div>
 
+        {atDailyLimit && (
+          <div style={{
+            marginBottom: '18px', padding: '16px 18px', borderRadius: '16px',
+            background: '#fff7ed', border: '1.5px solid #fed7aa',
+            display: 'flex', gap: '13px', alignItems: 'flex-start',
+          }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: '50%',
+              background: 'rgba(249,115,22,0.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 3px', fontSize: '14px', fontWeight: 700, color: '#c2410c' }}>
+                Daily scan limit reached
+              </p>
+              <p style={{ margin: 0, fontSize: '13px', color: '#9a3412', lineHeight: 1.5 }}>
+                You&apos;ve used all {limitInfo?.limit} scans for today. New scans available {getResetInStr()}.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="tab-bar">
           {TABS.map(t => (
             <button
@@ -600,14 +664,15 @@ export default function ScannerPage() {
                 <p className="scan-card-desc">
                   Point your camera at a product barcode. Works on packaged food, beverages, cleaning products, medications, cosmetics, and more.
                 </p>
-                {!cameraUnsupported && extractState.status !== 'success' && (
+                {!cameraUnsupported && extractState.status !== 'success' && !atDailyLimit && (
                   <div style={{ marginBottom: '14px' }}>
                     <BarcodeCamera onDetected={handleBarcodeDetected} onUnsupported={handleUnsupported} />
                   </div>
                 )}
-                <input ref={barcodeUploadRef} type="file" accept="image/*" onChange={handleBarcodeFile} style={{ display: 'none' }} />
+                <input ref={barcodeUploadRef} type="file" accept="image/*" disabled={atDailyLimit} onChange={handleBarcodeFile} style={{ display: 'none' }} />
                 <div className="capture-grid">
-                  <button type="button" className="capture-btn" onClick={() => barcodeUploadRef.current?.click()}>
+                  <button type="button" className="capture-btn" disabled={atDailyLimit} onClick={() => barcodeUploadRef.current?.click()}
+                    style={atDailyLimit ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}>
                     <span className="capture-btn-icon">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -616,7 +681,8 @@ export default function ScannerPage() {
                     </span>
                     Upload Image
                   </button>
-                  <button type="button" className="capture-btn primary" onClick={() => setCaptureMode('barcode')}>
+                  <button type="button" className="capture-btn primary" disabled={atDailyLimit} onClick={() => setCaptureMode('barcode')}
+                    style={atDailyLimit ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}>
                     <span className="capture-btn-icon">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 9V6a1 1 0 0 1 1-1h3M15 5h3a1 1 0 0 1 1 1v3M21 15v3a1 1 0 0 1-1 1h-3M9 19H6a1 1 0 0 1-1-1v-3"/>
@@ -642,7 +708,7 @@ export default function ScannerPage() {
                 <p className="scan-card-desc">
                   Take a photo of any product label. Food, cleaning products, medications, cosmetics, supplements, and more.
                 </p>
-                <input ref={labelUploadRef} type="file" accept="image/*" onChange={handleLabelFile} style={{ display: 'none' }} />
+                <input ref={labelUploadRef} type="file" accept="image/*" disabled={atDailyLimit} onChange={handleLabelFile} style={{ display: 'none' }} />
 
                 {imagePreview ? (
                   <div style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1.5px solid #e2e8f0', marginBottom: extractState.status !== 'idle' ? '14px' : 0 }}>
@@ -685,7 +751,8 @@ export default function ScannerPage() {
                   </div>
                 ) : (
                   <div className="capture-grid">
-                    <button type="button" className="capture-btn" onClick={() => labelUploadRef.current?.click()}>
+                    <button type="button" className="capture-btn" disabled={atDailyLimit} onClick={() => labelUploadRef.current?.click()}
+                      style={atDailyLimit ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}>
                       <span className="capture-btn-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -694,7 +761,8 @@ export default function ScannerPage() {
                       </span>
                       Upload Photo
                     </button>
-                    <button type="button" className="capture-btn primary" onClick={() => setCaptureMode('label')}>
+                    <button type="button" className="capture-btn primary" disabled={atDailyLimit} onClick={() => setCaptureMode('label')}
+                      style={atDailyLimit ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}>
                       <span className="capture-btn-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
