@@ -143,7 +143,8 @@ function extractOpenFDAIngredients(
 
 // Web scraping fallback: DuckDuckGo (general + Amazon-specific) → Jina Reader → AI extraction
 async function webScrapeForIngredients(
-  productName: string
+  productName: string,
+  alternateNames: string[] = []
 ): Promise<{ product_name: string; ingredients: string } | null> {
   try {
     const DDG_HEADERS = {
@@ -152,16 +153,17 @@ async function webScrapeForIngredients(
     }
     const SKIP_DOMAINS = ['duckduckgo.com', 'wikipedia.org', 'twitter.com', 'facebook.com', 'reddit.com', 'youtube.com']
 
-    const searches = [
-      `${productName} ingredients`,
-      `"${productName}" ingredients`,
-      `${productName} full ingredient list`,
-      `${productName} active ingredient`,
-      `site:cosrx.com ${productName} ingredients`,
-      `site:incidecoder.com ${productName}`,
-      `site:amazon.com ${productName} ingredients`,
-      `site:amazon.com ${productName}`,
-    ]
+    const searchNames = [productName, ...alternateNames].slice(0, 3)
+    const searches = searchNames.flatMap(name => [
+      `${name} ingredients`,
+      `"${name}" ingredients`,
+      `${name} active ingredient`,
+      `${name} composition formula`,
+      `${name} INCI`,
+      `${name} specifications`,
+      `site:amazon.com ${name} ingredients`,
+      `site:amazon.com ${name} specifications`,
+    ])
 
     const searchResults = await Promise.allSettled(
       searches.map(search =>
@@ -193,7 +195,7 @@ async function webScrapeForIngredients(
     for (const result of searchResults) {
       const html = result.status === 'fulfilled' && result.value.ok ? await result.value.text() : ''
       for (const url of extractUrls(html, 4)) {
-        if (!seen.has(url) && candidateUrls.length < 12) {
+        if (!seen.has(url) && candidateUrls.length < 8) {
           seen.add(url)
           candidateUrls.push(url)
         }
@@ -212,7 +214,11 @@ async function webScrapeForIngredients(
         'ingredients',
         'active ingredient',
         'inactive ingredient',
+        'active ingredients',
+        'inactive ingredients',
         'drug facts',
+        'uses',
+        'purpose',
         'important information',
         'about this item',
         'features & specs',
@@ -220,6 +226,16 @@ async function webScrapeForIngredients(
         'product specifications',
         'see all product specifications',
         'specifications',
+        'material',
+        'materials',
+        'material feature',
+        'item form',
+        'scent',
+        'composition',
+        'formula',
+        'product details',
+        'technical details',
+        'details',
       ]
 
       const starts = sectionNeedles
@@ -262,7 +278,8 @@ async function webScrapeForIngredients(
         scrapedPages.push({
           url,
           text,
-          hasRelevantText: /ingredient|drug facts|important information|about this item|features (&|and) specs|product specifications/i.test(text),
+          hasRelevantText:
+            /ingredient|drug facts|important information|about this item|features (&|and) specs|product specifications|material|item form|composition|formula|technical details/i.test(text),
         })
       } catch {}
     }
@@ -280,7 +297,7 @@ async function webScrapeForIngredients(
       return 0
     })
 
-    const pagesToTry = scrapedPages.slice(0, 10)
+    const pagesToTry = scrapedPages.slice(0, 5)
     const firstAmazonPage = scrapedPages.find(page => page.url.includes('amazon.com'))
     if (firstAmazonPage && !pagesToTry.some(page => page.url === firstAmazonPage.url)) {
       pagesToTry.push(firstAmazonPage)
@@ -292,12 +309,14 @@ async function webScrapeForIngredients(
       const isAmazonPage = page.url.includes('amazon.com')
       const contentForAI = sliceRelevantProductSections(page.text, isAmazonPage)
 
-      const extractPrompt = `From the following product page content, find and extract the complete ingredient list for "${productName}".
+      const extractPrompt = `From the following product page content, find and extract the product's ingredients, active ingredients, composition, formula, or material/substance fields for "${productName}".
 Return ONLY valid JSON with this exact schema:
 {"product_name": "exact product name as shown on the page, or null", "ingredients": "full ingredient list as plain text, or null"}
 Rules:
-- Only return ingredients if you can clearly identify an actual ingredient list (not product descriptions or marketing text)
-- On Amazon pages, inspect About this item, Features & Specs, See all product Specifications, Product specifications, Drug Facts, and Important information; ingredients often appear there instead of in the title area
+- Return ingredients when you can clearly identify an ingredient list, active/inactive ingredients, chemical composition, formula, material, or substance/concentration field
+- On Amazon pages, inspect About this item, Features & Specs, See all product Specifications, Product specifications, Product details, Technical details, Drug Facts, and Important information; relevant ingredients/composition often appear there instead of in the title area
+- For OTC/first-aid/cleaning/household products, a specification like "Active ingredient: Isopropyl alcohol 70%" or "Material: sodium hypochlorite" is valid ingredient/composition evidence
+- Do not treat product benefits, claims, directions, warnings, size, scent, or packaging details as ingredients unless they directly name a substance or active ingredient
 - Do NOT invent, guess, or hallucinate ingredients; if unsure, return null for ingredients
 - Include both active and inactive ingredients if both are present
 - Return the ingredients as a single plain text string (comma-separated or as-is from the page)
@@ -378,8 +397,10 @@ function extractObviousActiveIngredientFromName(
 
   const isopropylMatch =
     lower.match(/\b(\d{2,3}(?:\.\d+)?)\s*%\s*isopropyl alcohol\b/) ??
-    lower.match(/\bisopropyl alcohol\s*(\d{2,3}(?:\.\d+)?)\s*%/)
-  if (isopropylMatch && lower.includes('antiseptic')) {
+    lower.match(/\bisopropyl alcohol\s*(\d{2,3}(?:\.\d+)?)\s*%/) ??
+    lower.match(/\b(\d{2,3}(?:\.\d+)?)\s+isopropyl alcohol\b/) ??
+    lower.match(/\bisopropyl alcohol\s+(\d{2,3}(?:\.\d+)?)\b/)
+  if (isopropylMatch && (lower.includes('antiseptic') || lower.includes('first aid') || lower.includes('alcohol'))) {
     return {
       product_name: normalized,
       ingredients: `Active ingredient: Isopropyl alcohol ${isopropylMatch[1]}%`,
@@ -522,6 +543,11 @@ async function fetchProductByName(
   const queries = buildProductSearchQueries(query)
 
   for (const searchQuery of queries) {
+    const obviousActiveIngredient = extractObviousActiveIngredientFromName(searchQuery)
+    if (obviousActiveIngredient) return obviousActiveIngredient
+  }
+
+  for (const searchQuery of queries) {
     const [foodResult, beautyResult, productsResult] = await Promise.all([
       searchOpenFoodNetwork('openfoodfacts', searchQuery),
       searchOpenFoodNetwork('openbeautyfacts', searchQuery),
@@ -538,16 +564,10 @@ async function fetchProductByName(
     if (fdaResult) return { ...fdaResult }
   }
 
-  for (const searchQuery of queries) {
-    const obviousActiveIngredient = extractObviousActiveIngredientFromName(searchQuery)
-    if (obviousActiveIngredient) return obviousActiveIngredient
-  }
 
   // Web scraping fallback — search the web and extract ingredients via AI
-  for (const searchQuery of queries) {
-    const webResult = await webScrapeForIngredients(searchQuery)
-    if (webResult) return webResult
-  }
+  const webResult = await webScrapeForIngredients(queries[0], queries.slice(1))
+  if (webResult) return webResult
 
   return null
 }
