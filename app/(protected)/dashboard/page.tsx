@@ -75,15 +75,14 @@ export default async function DashboardPage() {
   const gradeCounts: Record<'A' | 'B' | 'C' | 'D', number> = { A: 0, B: 0, C: 0, D: 0 }
   for (const scan of scans) gradeCounts[scan.overall_grade]++
 
-  // Insights: top flagged ingredients
+  // Insights: top flagged ingredients (new format uses concern_ingredients, legacy uses ingredients)
   const ingredientFreq: Record<string, { display: string; count: number }> = {}
   for (const scan of scans) {
-    for (const ing of (scan.analysis?.ingredients ?? [])) {
-      if (!ing.safe) {
-        const key = ing.name.toLowerCase().trim()
-        if (!ingredientFreq[key]) ingredientFreq[key] = { display: ing.name, count: 0 }
-        ingredientFreq[key].count++
-      }
+    const concerns = scan.analysis?.concern_ingredients ?? scan.analysis?.ingredients?.filter(i => !i.safe) ?? []
+    for (const ing of concerns) {
+      const key = ing.name.toLowerCase().trim()
+      if (!ingredientFreq[key]) ingredientFreq[key] = { display: ing.name, count: 0 }
+      ingredientFreq[key].count++
     }
   }
   const topConcerns = Object.values(ingredientFreq)

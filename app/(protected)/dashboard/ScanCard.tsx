@@ -12,9 +12,9 @@ export type Scan = {
   analysis: {
     summary: string
     // new format
-    concern_ingredients?: { safe: boolean; flagged?: boolean }[]
+    concern_ingredients?: { name: string; grade: 'A' | 'B' | 'C' | 'D'; safe: boolean; flagged?: boolean }[]
     // legacy format
-    ingredients?: { safe: boolean; flagged?: boolean }[]
+    ingredients?: { name: string; grade: 'A' | 'B' | 'C' | 'D'; safe: boolean; flagged?: boolean }[]
   }
   created_at: string
 }
