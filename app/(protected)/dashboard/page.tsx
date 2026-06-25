@@ -147,11 +147,8 @@ export default async function DashboardPage() {
 
         .scan-grid {
           display: grid;
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(2, 1fr);
           gap: 10px;
-        }
-        @media (min-width: 480px) {
-          .scan-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (min-width: 640px) {
           .scan-grid {
@@ -160,8 +157,8 @@ export default async function DashboardPage() {
           }
         }
 
-        .scan-card-img { height: 160px; }
-        @media (min-width: 480px) { .scan-card-img { height: 115px; } }
+        .scan-card-img { height: 110px; }
+        @media (min-width: 480px) { .scan-card-img { height: 120px; } }
         @media (min-width: 640px) { .scan-card-img { height: 150px; } }
 
         .scan-card-body { padding: 8px 10px 10px; }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import { ScanDetailImage } from './ScanDetailImage'
 
 type Ingredient = {
   name: string
@@ -196,12 +197,8 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
           </div>
 
           {scan.image_url && (
-            <div style={{ margin: '16px 22px 0', borderRadius: '16px', overflow: 'hidden' }}>
-              <img
-                src={scan.image_url}
-                alt={scan.product_name ?? 'Product'}
-                style={{ width: '100%', maxHeight: '240px', objectFit: 'cover', display: 'block' }}
-              />
+            <div style={{ margin: '16px 22px 0' }}>
+              <ScanDetailImage src={scan.image_url} alt={scan.product_name ?? 'Product'} />
             </div>
           )}
 
