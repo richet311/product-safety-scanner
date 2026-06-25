@@ -111,6 +111,7 @@ export default function ScannerPage() {
   const [inlineResult, setInlineResult] = useState<{ analysis: AnalysisResult; productName: string; saveError?: string } | null>(null)
   const [captureMode, setCaptureMode] = useState<'barcode' | 'label' | null>(null)
   const [limitInfo, setLimitInfo] = useState<{ used: number; limit: number } | null>(null)
+  const [limitLoading, setLimitLoading] = useState(true)
   const captureModeRef = useRef<'barcode' | 'label' | null>(null)
   captureModeRef.current = captureMode
 
@@ -122,19 +123,25 @@ export default function ScannerPage() {
 
   useEffect(() => {
     async function checkDailyLimit() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const todayUTC = new Date()
-      todayUTC.setUTCHours(0, 0, 0, 0)
-      const [{ count }, { data: profile }] = await Promise.all([
-        supabase.from('scan_events').select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id).gte('created_at', todayUTC.toISOString()),
-        supabase.from('profiles').select('daily_scan_limit').eq('id', user.id).single(),
-      ])
-      setLimitInfo({
-        used: count ?? 0,
-        limit: (profile as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? 20,
-      })
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const todayUTC = new Date()
+        todayUTC.setUTCHours(0, 0, 0, 0)
+        const [{ count }, { data: profile }] = await Promise.all([
+          supabase.from('scan_events').select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id).gte('created_at', todayUTC.toISOString()),
+          supabase.from('profiles').select('daily_scan_limit').eq('id', user.id).single(),
+        ])
+        setLimitInfo({
+          used: count ?? 0,
+          limit: (profile as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? 20,
+        })
+      } catch {
+        // fail open — allow scanning if the check errors
+      } finally {
+        setLimitLoading(false)
+      }
     }
     checkDailyLimit()
   }, [])
@@ -561,7 +568,15 @@ export default function ScannerPage() {
           </p>
         </div>
 
-        {atDailyLimit && limitInfo && (() => {
+        {limitLoading && (
+          <div style={{ padding: '80px 0', display: 'flex', justifyContent: 'center' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00C37A" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.9s linear infinite' }}>
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          </div>
+        )}
+
+        {!limitLoading && atDailyLimit && limitInfo && (() => {
           const { countdown, localTime } = getResetInfo()
           return (
             <div style={{
@@ -606,7 +621,7 @@ export default function ScannerPage() {
           )
         })()}
 
-        {!atDailyLimit && (<>
+        {!limitLoading && !atDailyLimit && (<>
 
         <div className="tab-bar">
           {TABS.map(t => (

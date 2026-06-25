@@ -37,7 +37,7 @@ export function DailyUsage({ scanEvents, dailyLimit }: { scanEvents: EventItem[]
         color: atLimit ? '#ef4444' : '#94a3b8',
         whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
       }}>
-        {atLimit ? 'Limit reached' : `${remaining} / ${dailyLimit} left`}
+        {atLimit ? 'Daily Limit Reached' : `${remaining} / ${dailyLimit} left`}
       </span>
     </div>
   )
