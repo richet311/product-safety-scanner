@@ -1,29 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ScanCard } from './ScanCard'
 import type { Scan } from './ScanCard'
 import { ActivityChart } from './ActivityChart'
 import { DailyUsage } from './DailyUsage'
+import { ScanHistory } from './ScanHistory'
 
 const DEFAULT_DAILY_LIMIT = 20
-
-function getGroup(created_at: string): string {
-  const now = new Date()
-  const date = new Date(created_at)
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const yesterdayStart = new Date(todayStart.getTime() - 86400000)
-  const weekStart = new Date(todayStart.getTime() - 6 * 86400000)
-  const monthStart = new Date(todayStart.getTime() - 29 * 86400000)
-
-  if (date >= todayStart) return 'Today'
-  if (date >= yesterdayStart) return 'Yesterday'
-  if (date >= weekStart) return 'This Week'
-  if (date >= monthStart) return 'This Month'
-  return 'Older'
-}
-
-const GROUP_ORDER = ['Today', 'Yesterday', 'This Week', 'This Month', 'Older']
 
 const GRADE_META = {
   A: { color: '#00C37A', label: 'Very Safe' },
@@ -38,7 +21,8 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
 
   // Fetch last 48 h of events so the client can filter by local "today" regardless of timezone offset
-  const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString()
+  const now = new Date()
+  const twoDaysAgo = new Date(now.getTime() - 2 * 86400000).toISOString()
 
   const [scansResult, profileResult, eventsResult] = await Promise.all([
     supabase
@@ -126,16 +110,6 @@ export default async function DashboardPage() {
     : safetyScore >= 60 ? '#EAB308'
     : safetyScore >= 35 ? '#F97316'
     : '#EF4444'
-
-  // Group scans by time period
-  const grouped: Record<string, Scan[]> = {}
-  for (const scan of scans) {
-    const g = getGroup(scan.created_at)
-    if (!grouped[g]) grouped[g] = []
-    grouped[g].push(scan)
-  }
-  const groups = GROUP_ORDER.filter(g => grouped[g]?.length > 0)
-  const todayScans = grouped['Today'] ?? []
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', overflowX: 'hidden' }}>
@@ -331,42 +305,7 @@ export default async function DashboardPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                {groups.map(group => (
-                  <div key={group}>
-                    <p className="group-label">
-                      {group === 'Today'
-                        ? todayScans.length > 0
-                          ? `Today · ${todayScans.length} scan${todayScans.length !== 1 ? 's' : ''}`
-                          : 'Today · No scans yet'
-                        : `${group} · ${grouped[group].length} scan${grouped[group].length !== 1 ? 's' : ''}`}
-                    </p>
-                    <div className="scan-grid">
-                      {grouped[group].map(scan => (
-                        <ScanCard key={scan.id} scan={scan} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                {todayScans.length === 0 && (
-                  <div>
-                    <p className="group-label">Today · No scans yet</p>
-                    <div style={{
-                      padding: '24px', borderRadius: '16px',
-                      background: '#fff', border: '1.5px dashed #e2e8f0',
-                      textAlign: 'center',
-                    }}>
-                      <p style={{ margin: '0 0 12px', fontSize: '13.5px', color: '#94a3b8' }}>
-                        You haven&apos;t scanned anything today.
-                      </p>
-                      <Link href="/scanner" className="new-scan-btn" style={{ padding: '8px 18px', fontSize: '13px' }}>
-                        Scan Now
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ScanHistory scans={scans} />
             </div>
 
             {/* Right: insights panel */}

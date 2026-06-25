@@ -253,6 +253,7 @@ export default function ScannerPage() {
         body: JSON.stringify({ image_base64: base64 }),
       })
       const json = await res.json()
+      let lookupError: string | null = null
 
       // Vision found the product name but not the ingredient list — try a database lookup
       if (!json.ingredients && json.product_name) {
@@ -268,10 +269,11 @@ export default function ScannerPage() {
           await runAnalysis(lookupJson.product_name ?? json.product_name, lookupJson.ingredients, file, lookupJson.product_image_url)
           return
         }
+        lookupError = lookupJson.error ?? `Found "${json.product_name}", but could not find ingredient or composition data.`
       }
 
       if (!res.ok || !json.ingredients) {
-        setExtractState({ status: 'error', message: json.error ?? "Couldn't read the ingredient list. Make sure the label is in focus and try again." })
+        setExtractState({ status: 'error', message: lookupError ?? json.error ?? "Couldn't read the ingredient list. Make sure the label is in focus and try again." })
         return
       }
 

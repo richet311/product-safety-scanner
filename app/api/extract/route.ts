@@ -153,17 +153,20 @@ async function webScrapeForIngredients(
     }
     const SKIP_DOMAINS = ['duckduckgo.com', 'wikipedia.org', 'twitter.com', 'facebook.com', 'reddit.com', 'youtube.com']
 
-    const searchNames = [productName, ...alternateNames].slice(0, 3)
-    const searches = searchNames.flatMap(name => [
-      `${name} ingredients`,
-      `"${name}" ingredients`,
-      `${name} active ingredient`,
-      `${name} composition formula`,
-      `${name} INCI`,
-      `${name} specifications`,
-      `site:amazon.com ${name} ingredients`,
-      `site:amazon.com ${name} specifications`,
-    ])
+    const searchNames = [productName, ...alternateNames].slice(0, 2)
+    const searches = [
+      `${productName} ingredients`,
+      `"${productName}" ingredients`,
+      `${productName} active ingredient composition`,
+      `${productName} product specifications`,
+      `site:amazon.com ${productName} ingredients`,
+      `site:amazon.com ${productName} specifications`,
+      ...searchNames.slice(1).flatMap(name => [
+        `${name} ingredients`,
+        `${name} active ingredient composition`,
+        `site:amazon.com ${name} ingredients`,
+      ]),
+    ]
 
     const searchResults = await Promise.allSettled(
       searches.map(search =>
@@ -175,6 +178,24 @@ async function webScrapeForIngredients(
     )
 
     const directAmazonUrl = `https://www.amazon.com/s?k=${encodeURIComponent(productName)}`
+
+    const decodeHtml = (value: string): string =>
+      value
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;|&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+
+    const htmlToSearchText = (html: string): string =>
+      decodeHtml(
+        html
+          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+      ).trim()
 
     const extractUrls = (html: string, limit: number): string[] => {
       const urls: string[] = []
@@ -191,9 +212,12 @@ async function webScrapeForIngredients(
 
     const seen = new Set<string>()
     const candidateUrls: string[] = []
+    const searchResultText: string[] = []
 
     for (const result of searchResults) {
       const html = result.status === 'fulfilled' && result.value.ok ? await result.value.text() : ''
+      const text = htmlToSearchText(html)
+      if (text) searchResultText.push(text.slice(0, 2500))
       for (const url of extractUrls(html, 4)) {
         if (!seen.has(url) && candidateUrls.length < 8) {
           seen.add(url)
@@ -285,8 +309,23 @@ async function webScrapeForIngredients(
     }
 
     if (!scrapedPages.length) {
-      console.warn('[extract] web scrape: Jina Reader returned no usable content')
-      return null
+      if (!searchResultText.length) {
+        console.warn('[extract] web scrape: Jina Reader returned no usable content')
+        return null
+      }
+      scrapedPages.push({
+        url: 'duckduckgo-search-results',
+        text: searchResultText.join('\n\n--- search result break ---\n\n'),
+        hasRelevantText: true,
+      })
+    }
+
+    if (searchResultText.length && !scrapedPages.some(page => page.url === 'duckduckgo-search-results')) {
+      scrapedPages.push({
+        url: 'duckduckgo-search-results',
+        text: searchResultText.join('\n\n--- search result break ---\n\n'),
+        hasRelevantText: true,
+      })
     }
 
     scrapedPages.sort((a, b) => {
@@ -302,41 +341,59 @@ async function webScrapeForIngredients(
     if (firstAmazonPage && !pagesToTry.some(page => page.url === firstAmazonPage.url)) {
       pagesToTry.push(firstAmazonPage)
     }
+    const searchResultsPage = scrapedPages.find(page => page.url === 'duckduckgo-search-results')
+    if (searchResultsPage && !pagesToTry.some(page => page.url === searchResultsPage.url)) {
+      pagesToTry.push(searchResultsPage)
+    }
 
-    for (const page of pagesToTry) {
-      console.log(`[extract] web scrape: fetched ${page.text.length} chars from ${page.url}`)
+    const evidenceSections = pagesToTry
+      .map((page, index) => {
+        const isAmazonPage = page.url.includes('amazon.com')
+        const isSearchResultsPage = page.url === 'duckduckgo-search-results'
+        const content = sliceRelevantProductSections(page.text, isAmazonPage).trim()
+        if (content.length < 80) return null
+        const sourceKind = isSearchResultsPage ? 'search results snippets' : isAmazonPage ? 'amazon product page' : 'product page'
+        return `SOURCE ${index + 1} (${sourceKind})
+URL: ${page.url}
+${content}`
+      })
+      .filter((section): section is string => Boolean(section))
 
-      const isAmazonPage = page.url.includes('amazon.com')
-      const contentForAI = sliceRelevantProductSections(page.text, isAmazonPage)
+    const evidencePack = evidenceSections.join('\n\n====================\n\n').slice(0, 18000)
+    if (!evidencePack) return null
 
-      const extractPrompt = `From the following product page content, find and extract the product's ingredients, active ingredients, composition, formula, or material/substance fields for "${productName}".
+    console.log(`[extract] web scrape: prepared ${evidenceSections.length} evidence sections for ${productName}`)
+
+    const extractPrompt = `From the following product lookup evidence, extract the product's ingredients, active ingredients, composition, formula, or material/substance fields for "${productName}".
 Return ONLY valid JSON with this exact schema:
 {"product_name": "exact product name as shown on the page, or null", "ingredients": "full ingredient list as plain text, or null"}
 Rules:
 - Return ingredients when you can clearly identify an ingredient list, active/inactive ingredients, chemical composition, formula, material, or substance/concentration field
+- Prefer direct product pages over search result snippets
+- Use search result snippets only when they directly name the target product and directly state ingredients, active ingredients, formula, material, or composition
 - On Amazon pages, inspect About this item, Features & Specs, See all product Specifications, Product specifications, Product details, Technical details, Drug Facts, and Important information; relevant ingredients/composition often appear there instead of in the title area
 - For OTC/first-aid/cleaning/household products, a specification like "Active ingredient: Isopropyl alcohol 70%" or "Material: sodium hypochlorite" is valid ingredient/composition evidence
 - Do not treat product benefits, claims, directions, warnings, size, scent, or packaging details as ingredients unless they directly name a substance or active ingredient
+- Do not use ingredients for a different product, variant, scent, size, or sponsored/related listing
 - Do NOT invent, guess, or hallucinate ingredients; if unsure, return null for ingredients
 - Include both active and inactive ingredients if both are present
 - Return the ingredients as a single plain text string (comma-separated or as-is from the page)
 
-Page content:
-${contentForAI}`
+Evidence:
+${evidencePack}`
 
-      try {
-        const aiContent = await callAI(extractPrompt, 1024)
-        const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
+    try {
+      const aiContent = await callAI(extractPrompt, 1200)
+      const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
 
-        if (parsed.ingredients && parsed.ingredients.trim().length >= 5) {
-          return {
-            product_name: parsed.product_name ?? productName,
-            ingredients: parsed.ingredients,
-          }
+      if (parsed.ingredients && parsed.ingredients.trim().length >= 5) {
+        return {
+          product_name: parsed.product_name ?? productName,
+          ingredients: parsed.ingredients,
         }
-      } catch (err) {
-        console.warn(`[extract] web scrape: AI extraction failed for ${page.url}`, err)
       }
+    } catch (err) {
+      console.warn('[extract] web scrape: AI extraction failed for evidence pack', err)
     }
 
     return null
