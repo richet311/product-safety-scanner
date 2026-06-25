@@ -282,6 +282,43 @@ function normalizeProductName(name: string | undefined): string {
   return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\u2018\u2019`]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function addSearchVariant(variants: string[], seen: Set<string>, value: string) {
+  const normalized = normalizeSearchText(value)
+  const key = normalized.toLowerCase()
+  if (normalized && !seen.has(key)) {
+    seen.add(key)
+    variants.push(normalized)
+  }
+}
+
+function buildProductSearchQueries(query: string): string[] {
+  const base = normalizeSearchText(query)
+  const variants: string[] = []
+  const seen = new Set<string>()
+
+  addSearchVariant(variants, seen, base)
+  addSearchVariant(variants, seen, base.replace(/\([^)]*\)/g, ' '))
+  addSearchVariant(variants, seen, base.replace(/[^\p{L}\p{N}'&+\-\s]/gu, ' '))
+  addSearchVariant(
+    variants,
+    seen,
+    base.replace(/\b\d+(?:\.\d+)?\s*(?:fl\.?\s*oz|fluid ounces?|oz|ounces?|ml|milliliters?|g|grams?|ct|count|pack|pcs|ea)\b/gi, ' ')
+  )
+  addSearchVariant(variants, seen, base.replace(/\b(?:new|sealed|authentic|original|travel size|mini|value size)\b/gi, ' '))
+
+  return variants
+}
+
 async function lookupBarcode(barcode: string) {
   let foundName: string | undefined
   let foundImageUrl: string | undefined
@@ -328,8 +365,13 @@ async function lookupBarcode(barcode: string) {
 
   // Single match — return directly
   if (uniqueMatches.length === 1) {
-    const { source: _source, ...rest } = uniqueMatches[0]
-    return NextResponse.json({ barcode, ...rest })
+    const match = uniqueMatches[0]
+    return NextResponse.json({
+      barcode,
+      product_name: match.product_name,
+      ingredients: match.ingredients,
+      product_image_url: match.product_image_url,
+    })
   }
 
   // Collect any name or image found from partial results (no ingredients)
@@ -397,22 +439,30 @@ async function lookupBarcode(barcode: string) {
 async function fetchProductByName(
   query: string
 ): Promise<{ product_name: string; ingredients: string; product_image_url?: string } | null> {
-  const [foodResult, beautyResult, productsResult] = await Promise.all([
-    searchOpenFoodNetwork('openfoodfacts', query),
-    searchOpenFoodNetwork('openbeautyfacts', query),
-    searchOpenFoodNetwork('openproductsfacts', query),
-  ])
+  const queries = buildProductSearchQueries(query)
 
-  for (const result of [foodResult, beautyResult, productsResult]) {
-    if (result) return result
+  for (const searchQuery of queries) {
+    const [foodResult, beautyResult, productsResult] = await Promise.all([
+      searchOpenFoodNetwork('openfoodfacts', searchQuery),
+      searchOpenFoodNetwork('openbeautyfacts', searchQuery),
+      searchOpenFoodNetwork('openproductsfacts', searchQuery),
+    ])
+
+    for (const result of [foodResult, beautyResult, productsResult]) {
+      if (result) return result
+    }
   }
 
-  const fdaResult = await lookupOpenFDAByName(query)
-  if (fdaResult) return { ...fdaResult }
+  for (const searchQuery of queries) {
+    const fdaResult = await lookupOpenFDAByName(searchQuery)
+    if (fdaResult) return { ...fdaResult }
+  }
 
   // Web scraping fallback — search the web and extract ingredients via AI
-  const webResult = await webScrapeForIngredients(query)
-  if (webResult) return webResult
+  for (const searchQuery of queries) {
+    const webResult = await webScrapeForIngredients(searchQuery)
+    if (webResult) return webResult
+  }
 
   return null
 }
