@@ -4,6 +4,8 @@ import { callAI } from '@/lib/ai-providers'
 
 export const maxDuration = 60
 
+type Supabase = Awaited<ReturnType<typeof createClient>>
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -24,8 +26,8 @@ export async function POST(request: Request) {
   const barcode = body.barcode ? String(body.barcode).trim() : null
   const productName = body.product_name ? String(body.product_name).trim() : null
 
-  if (barcode) return lookupBarcode(barcode)
-  if (productName) return searchProductByName(productName)
+  if (barcode) return lookupBarcode(barcode, supabase)
+  if (productName) return searchProductByName(productName, supabase)
 
   return NextResponse.json({ error: 'Provide barcode or product_name' }, { status: 400 })
 }
@@ -143,8 +145,7 @@ function extractOpenFDAIngredients(
 
 // Web scraping fallback: DuckDuckGo (general + Amazon-specific) → Jina Reader → AI extraction
 async function webScrapeForIngredients(
-  productName: string,
-  alternateNames: string[] = []
+  productName: string
 ): Promise<{ product_name: string; ingredients: string } | null> {
   try {
     const DDG_HEADERS = {
@@ -153,54 +154,17 @@ async function webScrapeForIngredients(
     }
     const SKIP_DOMAINS = ['duckduckgo.com', 'wikipedia.org', 'twitter.com', 'facebook.com', 'reddit.com', 'youtube.com']
 
-    const searchNames = [productName, ...alternateNames].slice(0, 2)
-    const searches = [
-      `${productName} ingredients`,
-      `"${productName}" ingredients`,
-      `${productName} active ingredient composition`,
-      `${productName} inactive ingredients`,
-      `${productName} drug facts`,
-      `${productName} ophthalmic solution ingredients`,
-      `${productName} safety data sheet ingredients`,
-      `${productName} product specifications`,
-      `site:amazon.com ${productName} ingredients`,
-      `site:amazon.com ${productName} specifications`,
-      ...searchNames.slice(1).flatMap(name => [
-        `${name} ingredients`,
-        `${name} active ingredient composition`,
-        `${name} drug facts`,
-        `site:amazon.com ${name} ingredients`,
-      ]),
-    ]
-
-    const searchResults = await Promise.allSettled(
-      searches.map(search =>
-        fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(search)}`, {
-          headers: DDG_HEADERS,
-          signal: AbortSignal.timeout(5000),
-        })
-      )
-    )
-
-    const directAmazonUrl = `https://www.amazon.com/s?k=${encodeURIComponent(productName)}`
-
-    const decodeHtml = (value: string): string =>
-      value
-        .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;|&apos;/g, "'")
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, ' ')
-        .replace(/&nbsp;/g, ' ')
-
-    const htmlToSearchText = (html: string): string =>
-      decodeHtml(
-        html
-          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-      ).trim()
+    // Run two DDG searches in parallel: general ingredients search + Amazon-specific
+    const [generalRes, amazonRes] = await Promise.allSettled([
+      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(productName + ' ingredients')}`, {
+        headers: DDG_HEADERS,
+        signal: AbortSignal.timeout(5000),
+      }),
+      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent('site:amazon.com ' + productName)}`, {
+        headers: DDG_HEADERS,
+        signal: AbortSignal.timeout(5000),
+      }),
+    ])
 
     const extractUrls = (html: string, limit: number): string[] => {
       const urls: string[] = []
@@ -215,97 +179,34 @@ async function webScrapeForIngredients(
       return urls
     }
 
+    const generalHtml = generalRes.status === 'fulfilled' && generalRes.value.ok ? await generalRes.value.text() : ''
+    const amazonHtml = amazonRes.status === 'fulfilled' && amazonRes.value.ok ? await amazonRes.value.text() : ''
+
+    const amazonUrls = extractUrls(amazonHtml, 3)
+    const generalUrls = extractUrls(generalHtml, 4)
+
+    // Merge: Amazon-specific results first, then general (deduped)
     const seen = new Set<string>()
     const candidateUrls: string[] = []
-    const searchResultText: string[] = []
-
-    for (const result of searchResults) {
-      const html = result.status === 'fulfilled' && result.value.ok ? await result.value.text() : ''
-      const text = htmlToSearchText(html)
-      if (text) searchResultText.push(text.slice(0, 2500))
-      for (const url of extractUrls(html, 4)) {
-        if (!seen.has(url) && candidateUrls.length < 8) {
-          seen.add(url)
-          candidateUrls.push(url)
-        }
+    for (const url of [...amazonUrls, ...generalUrls]) {
+      if (!seen.has(url) && candidateUrls.length < 6) {
+        seen.add(url)
+        candidateUrls.push(url)
       }
     }
 
+    // If DDG didn't surface any Amazon URLs, inject a direct Amazon search
     if (!candidateUrls.some(u => u.includes('amazon.com'))) {
-      candidateUrls.push(directAmazonUrl)
+      candidateUrls.unshift(`https://www.amazon.com/s?k=${encodeURIComponent(productName)}`)
     }
 
     if (!candidateUrls.length) return null
 
-    const sliceRelevantProductSections = (content: string, isAmazonPage: boolean): string => {
-      const lowerContent = content.toLowerCase()
-      const sectionNeedles = [
-        'ingredients',
-        'active ingredient',
-        'inactive ingredient',
-        'active ingredients',
-        'inactive ingredients',
-        'drug facts',
-        'active',
-        'inactive',
-        'ophthalmic',
-        'ophthalmic solution',
-        'sterile',
-        'uses',
-        'purpose',
-        'warnings',
-        'important information',
-        'about this item',
-        'features & specs',
-        'features and specs',
-        'product specifications',
-        'see all product specifications',
-        'specifications',
-        'material',
-        'materials',
-        'material feature',
-        'item form',
-        'scent',
-        'composition',
-        'formula',
-        'chemical composition',
-        'safety data sheet',
-        'sds',
-        'disinfectant',
-        'antibacterial',
-        'product details',
-        'technical details',
-        'details',
-      ]
-
-      const starts = sectionNeedles
-        .map(needle => lowerContent.indexOf(needle))
-        .filter(idx => idx >= 0)
-        .sort((a, b) => a - b)
-
-      if (!starts.length) return content.slice(0, 9000)
-
-      const snippets: string[] = []
-      const seenRanges = new Set<string>()
-      const maxSnippets = isAmazonPage ? 6 : 4
-
-      for (const idx of starts) {
-        const start = Math.max(0, idx - 500)
-        const end = Math.min(content.length, idx + 3500)
-        const rangeKey = `${Math.floor(start / 1000)}:${Math.floor(end / 1000)}`
-        if (seenRanges.has(rangeKey)) continue
-        seenRanges.add(rangeKey)
-        snippets.push(content.slice(start, end))
-        if (snippets.length >= maxSnippets) break
-      }
-
-      const combined = snippets.join('\n\n--- section break ---\n\n')
-      return combined.length > 12000 ? combined.slice(0, 12000) : combined
-    }
-
-    type ScrapedPage = { url: string; text: string; hasRelevantText: boolean }
-    const scrapedPages: ScrapedPage[] = []
-
+    // Try each URL through Jina Reader — prefer pages that actually mention ingredients
+    let pageContent = ''
+    let pageUrl = ''
+    let fallbackContent = ''
+    let fallbackUrl = ''
     for (const url of candidateUrls) {
       try {
         const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
@@ -315,109 +216,102 @@ async function webScrapeForIngredients(
         if (!jinaRes.ok) continue
         const text = await jinaRes.text()
         if (!text || text.length < 400) continue
-        scrapedPages.push({
-          url,
-          text,
-          hasRelevantText:
-            /ingredient|drug facts|ophthalmic|important information|about this item|features (&|and) specs|product specifications|material|item form|composition|formula|safety data sheet|sds|technical details/i.test(text),
-        })
+        if (text.toLowerCase().includes('ingredient')) {
+          pageContent = text
+          pageUrl = url
+          break
+        }
+        if (!fallbackContent) {
+          fallbackContent = text
+          fallbackUrl = url
+        }
       } catch {}
     }
 
-    if (!scrapedPages.length) {
-      if (!searchResultText.length) {
-        console.warn('[extract] web scrape: Jina Reader returned no usable content')
-        return null
-      }
-      scrapedPages.push({
-        url: 'duckduckgo-search-results',
-        text: searchResultText.join('\n\n--- search result break ---\n\n'),
-        hasRelevantText: true,
-      })
+    // Fall back to first usable page if none had "ingredient"
+    if (!pageContent && fallbackContent) {
+      pageContent = fallbackContent
+      pageUrl = fallbackUrl
     }
 
-    if (searchResultText.length && !scrapedPages.some(page => page.url === 'duckduckgo-search-results')) {
-      scrapedPages.push({
-        url: 'duckduckgo-search-results',
-        text: searchResultText.join('\n\n--- search result break ---\n\n'),
-        hasRelevantText: true,
-      })
+    if (!pageContent) {
+      console.warn('[extract] web scrape: Jina Reader returned no usable content')
+      return null
     }
 
-    scrapedPages.sort((a, b) => {
-      if (a.hasRelevantText !== b.hasRelevantText) return a.hasRelevantText ? -1 : 1
-      const aIsAmazon = a.url.includes('amazon.com')
-      const bIsAmazon = b.url.includes('amazon.com')
-      if (aIsAmazon !== bIsAmazon) return aIsAmazon ? 1 : -1
-      return 0
-    })
+    console.log(`[extract] web scrape: fetched ${pageContent.length} chars from ${pageUrl}`)
 
-    const pagesToTry = scrapedPages.slice(0, 5)
-    const firstAmazonPage = scrapedPages.find(page => page.url.includes('amazon.com'))
-    if (firstAmazonPage && !pagesToTry.some(page => page.url === firstAmazonPage.url)) {
-      pagesToTry.push(firstAmazonPage)
-    }
-    const searchResultsPage = scrapedPages.find(page => page.url === 'duckduckgo-search-results')
-    if (searchResultsPage && !pagesToTry.some(page => page.url === searchResultsPage.url)) {
-      pagesToTry.push(searchResultsPage)
+    // Smart content slicing: if ingredient section is deep in the page, focus on it
+    let contentForAI: string
+    const lowerContent = pageContent.toLowerCase()
+    const ingIdx = lowerContent.indexOf('ingredient')
+    if (ingIdx > 3000) {
+      const start = Math.max(0, ingIdx - 600)
+      contentForAI = pageContent.slice(start, start + 9000)
+    } else {
+      contentForAI = pageContent.slice(0, 9000)
     }
 
-    const evidenceSections = pagesToTry
-      .map((page, index) => {
-        const isAmazonPage = page.url.includes('amazon.com')
-        const isSearchResultsPage = page.url === 'duckduckgo-search-results'
-        const content = sliceRelevantProductSections(page.text, isAmazonPage).trim()
-        if (content.length < 80) return null
-        const sourceKind = isSearchResultsPage ? 'search results snippets' : isAmazonPage ? 'amazon product page' : 'product page'
-        return `SOURCE ${index + 1} (${sourceKind})
-URL: ${page.url}
-${content}`
-      })
-      .filter((section): section is string => Boolean(section))
-
-    const evidencePack = evidenceSections.join('\n\n====================\n\n').slice(0, 18000)
-    if (!evidencePack) return null
-
-    console.log(`[extract] web scrape: prepared ${evidenceSections.length} evidence sections for ${productName}`)
-
-    const extractPrompt = `From the following product lookup evidence, extract the product's ingredients, active ingredients, composition, formula, or material/substance fields for "${productName}".
+    const extractPrompt = `From the following product page content, find and extract the complete ingredient list for "${productName}".
 Return ONLY valid JSON with this exact schema:
 {"product_name": "exact product name as shown on the page, or null", "ingredients": "full ingredient list as plain text, or null"}
 Rules:
-- Return ingredients when you can clearly identify an ingredient list, active/inactive ingredients, chemical composition, formula, material, or substance/concentration field
-- Prefer direct product pages over search result snippets
-- Use search result snippets only when they directly name the target product and directly state ingredients, active ingredients, formula, material, or composition
-- On Amazon pages, inspect About this item, Features & Specs, See all product Specifications, Product specifications, Product details, Technical details, Drug Facts, and Important information; relevant ingredients/composition often appear there instead of in the title area
-- For OTC/first-aid/eye drops/cleaning/household products, a specification like "Active ingredient: Isopropyl alcohol 70%", "Active: Carboxymethylcellulose sodium 0.5%", "Inactive ingredients: boric acid, sodium chloride", "Material: sodium hypochlorite", or SDS composition data is valid ingredient/composition evidence
-- Do not treat product benefits, claims, directions, warnings, size, scent, or packaging details as ingredients unless they directly name a substance or active ingredient
-- Do not use ingredients for a different product, variant, scent, size, or sponsored/related listing
-- Do NOT invent, guess, or hallucinate ingredients; if unsure, return null for ingredients
+- Only return ingredients if you can clearly identify an actual ingredient list (not product descriptions or marketing text)
+- Do NOT invent, guess, or hallucinate ingredients — if unsure, return null for ingredients
 - Include both active and inactive ingredients if both are present
 - Return the ingredients as a single plain text string (comma-separated or as-is from the page)
 
-Evidence:
-${evidencePack}`
+Page content:
+${contentForAI}`
 
-    try {
-      const aiContent = await callAI(extractPrompt, 1200)
-      const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
+    const aiContent = await callAI(extractPrompt, 1024)
+    const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
 
-      if (parsed.ingredients && parsed.ingredients.trim().length >= 5) {
-        return {
-          product_name: parsed.product_name ?? productName,
-          ingredients: parsed.ingredients,
-        }
-      }
-    } catch (err) {
-      console.warn('[extract] web scrape: AI extraction failed for evidence pack', err)
+    if (!parsed.ingredients || parsed.ingredients.trim().length < 5) return null
+    return {
+      product_name: parsed.product_name ?? productName,
+      ingredients: parsed.ingredients,
     }
-
-    return null
   } catch (err) {
     console.warn('[extract] web scrape failed:', err)
     return null
   }
 }
+
+// ─── Product cache helpers ────────────────────────────────────────────────────
+
+function saveToCache(
+  supabase: Supabase,
+  data: {
+    barcode?: string
+    product_name: string
+    raw_ingredients: string
+    product_image_url?: string
+    source: string
+  }
+) {
+  if (data.barcode) {
+    void supabase.from('product_cache').upsert(
+      {
+        barcode: data.barcode,
+        product_name: data.product_name,
+        raw_ingredients: data.raw_ingredients,
+        product_image_url: data.product_image_url ?? null,
+        source: data.source,
+      },
+      { onConflict: 'barcode' }
+    )
+  } else {
+    void supabase.from('product_cache').insert({
+      product_name: data.product_name,
+      raw_ingredients: data.raw_ingredients,
+      product_image_url: data.product_image_url ?? null,
+      source: data.source,
+    })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 type BarcodeMatch = { product_name?: string; ingredients: string; product_image_url?: string; source: string }
 
@@ -425,126 +319,27 @@ function normalizeProductName(name: string | undefined): string {
   return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-function normalizeSearchText(value: string): string {
-  return value
-    .normalize('NFKC')
-    .replace(/[\u2018\u2019`]/g, "'")
-    .replace(/[\u201c\u201d]/g, '"')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+async function lookupBarcode(barcode: string, supabase: Supabase) {
+  // ── Cache check ──────────────────────────────────────────────────────────
+  const { data: cached } = await supabase
+    .from('product_cache')
+    .select('id, product_name, raw_ingredients, product_image_url, hit_count')
+    .eq('barcode', barcode)
+    .maybeSingle()
 
-function addSearchVariant(variants: string[], seen: Set<string>, value: string) {
-  const normalized = normalizeSearchText(value)
-  const key = normalized.toLowerCase()
-  if (normalized && !seen.has(key)) {
-    seen.add(key)
-    variants.push(normalized)
-  }
-}
-
-function buildProductSearchQueries(query: string): string[] {
-  const base = normalizeSearchText(query)
-  const variants: string[] = []
-  const seen = new Set<string>()
-
-  addSearchVariant(variants, seen, base)
-  addSearchVariant(variants, seen, base.replace(/\([^)]*\)/g, ' '))
-  addSearchVariant(variants, seen, base.replace(/[^\p{L}\p{N}'&+\-\s]/gu, ' '))
-  addSearchVariant(
-    variants,
-    seen,
-    base.replace(/\b\d+(?:\.\d+)?\s*(?:fl\.?\s*oz|fluid ounces?|oz|ounces?|ml|milliliters?|g|grams?|ct|count|pack|pcs|ea)\b/gi, ' ')
-  )
-  addSearchVariant(variants, seen, base.replace(/\b(?:new|sealed|authentic|original|travel size|mini|value size)\b/gi, ' '))
-
-  return variants
-}
-
-function cleanActiveSubstancePhrase(raw: string): string | null {
-  const normalized = raw
-    .replace(/[^a-z0-9+./'\-\s]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  if (!normalized) return null
-
-  const stopWords =
-    /\b(?:active|ingredient|ingredients|drug|facts|first|aid|antiseptic|treatment|minor|cuts|scrapes|burns|unscented|pack|previously|facial|exfoliating|spray|whiteheads|pores|uneven|skin|korean|care|cleaner|cleaning|disinfectant|sanitizer|bleach|household|surface|wipes?|solution|ophthalmic|eye|drops?|lubricant|sterile|redness|relief|allergy|preservative|free|maximum|extra|strength|fl|oz|ounces?|ml|for|and|with|the|a|an)\b/i
-  const ingredientSignal =
-    /\b(?:acid|alcohol|peroxide|chloride|chlorite|hypochlorite|sodium|potassium|calcium|magnesium|cellulose|carboxymethylcellulose|hypromellose|benzalkonium|glycol|glycerin|glycerol|ethanol|isopropyl|ammonium|povidone|iodine|ketotifen|olopatadine|naphazoline|tetrahydrozoline|polyethylene|propylene|boric|salicylic|glycolic|lactic|benzoyl|chloroxylenol|retinol|niacinamide|hyaluronic)\b/i
-
-  const parts = normalized
-    .split(stopWords)
-    .map(part => part.trim())
-    .filter(part => part.length >= 3)
-
-  const candidates = parts.length ? parts : [normalized]
-  const best = candidates
-    .map(part => ({
-      part,
-      score:
-        (ingredientSignal.test(part) ? 10 : 0) -
-        Math.max(0, part.split(/\s+/).length - 5),
-    }))
-    .sort((a, b) => b.score - a.score)[0]?.part
-
-  if (!best || !ingredientSignal.test(best)) return null
-
-  return best
-    .split(/\s+/)
-    .slice(0, 6)
-    .map(word => {
-      if (/^(aha|bha|ph)$/i.test(word)) return word.toUpperCase()
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  if (cached) {
+    void supabase.from('product_cache')
+      .update({ hit_count: (cached.hit_count ?? 0) + 1 })
+      .eq('id', cached.id)
+    return NextResponse.json({
+      barcode,
+      product_name: cached.product_name,
+      ingredients: cached.raw_ingredients,
+      ...(cached.product_image_url ? { product_image_url: cached.product_image_url } : {}),
     })
-    .join(' ')
-}
-
-function formatActiveUnit(unit: string): string {
-  const compact = unit.replace(/\s+/g, '').toLowerCase()
-  if (compact === '%') return '%'
-  if (compact === 'mg/ml') return 'mg/mL'
-  if (compact === 'mcg/ml') return 'mcg/mL'
-  return compact
-}
-
-function extractLabelActiveIngredientFromName(
-  query: string
-): { product_name: string; ingredients: string } | null {
-  const normalized = normalizeSearchText(query)
-  const lower = normalized.toLowerCase()
-  const hasActiveContext =
-    /\b(active ingredient|drug facts|antiseptic|first aid|ophthalmic|eye drops?|lubricant eye|medicated|disinfectant|sanitizer|cleaner|cleaning|bleach|household|surface|wipes?|sterile)\b/i.test(lower)
-  if (!hasActiveContext) return null
-
-  const amount = String.raw`(\d{1,3}(?:\.\d+)?)`
-  const unit = String.raw`(%|mg\s*\/\s*ml|mcg\s*\/\s*ml|ppm|mg|mcg|g)`
-  const phrase = String.raw`([a-z][a-z0-9+./'\-]*(?:\s+[a-z][a-z0-9+./'\-]*){0,7})`
-  const patterns = [
-    new RegExp(String.raw`\b${amount}\s*${unit}\s+${phrase}`, 'i'),
-    new RegExp(String.raw`\b${phrase}\s+${amount}\s*${unit}\b`, 'i'),
-  ]
-
-  for (const [index, pattern] of patterns.entries()) {
-    const match = normalized.match(pattern)
-    if (!match) continue
-
-    const concentration = index === 0 ? match[1] : match[2]
-    const concentrationUnit = formatActiveUnit(index === 0 ? match[2] : match[3])
-    const substance = cleanActiveSubstancePhrase(index === 0 ? match[3] : match[1])
-    if (!substance) continue
-
-    return {
-      product_name: normalized,
-      ingredients: `Active ingredient: ${substance} ${concentration}${concentrationUnit === '%' ? '%' : ` ${concentrationUnit}`}`,
-    }
   }
+  // ─────────────────────────────────────────────────────────────────────────
 
-  return null
-}
-
-async function lookupBarcode(barcode: string) {
   let foundName: string | undefined
   let foundImageUrl: string | undefined
 
@@ -588,15 +383,19 @@ async function lookupBarcode(barcode: string) {
     return NextResponse.json({ barcode, matches: uniqueMatches })
   }
 
-  // Single match — return directly
+  // Single match — cache and return
   if (uniqueMatches.length === 1) {
-    const match = uniqueMatches[0]
-    return NextResponse.json({
-      barcode,
-      product_name: match.product_name,
-      ingredients: match.ingredients,
-      product_image_url: match.product_image_url,
-    })
+    const { source: _source, ...rest } = uniqueMatches[0]
+    if (rest.product_name) {
+      saveToCache(supabase, {
+        barcode,
+        product_name: rest.product_name,
+        raw_ingredients: rest.ingredients,
+        product_image_url: rest.product_image_url,
+        source: _source,
+      })
+    }
+    return NextResponse.json({ barcode, ...rest })
   }
 
   // Collect any name or image found from partial results (no ingredients)
@@ -610,6 +409,7 @@ async function lookupBarcode(barcode: string) {
   // 4. OpenFDA direct UPC search (OTC medications & drugs)
   const fdaByUpc = await lookupOpenFDAByUPC(barcode)
   if (fdaByUpc) {
+    saveToCache(supabase, { barcode, product_name: fdaByUpc.product_name, raw_ingredients: fdaByUpc.ingredients, source: 'openfda' })
     return NextResponse.json({ barcode, ...fdaByUpc, ...(foundImageUrl ? { product_image_url: foundImageUrl } : {}) })
   }
 
@@ -626,6 +426,9 @@ async function lookupBarcode(barcode: string) {
       const ingredients: string | undefined = item.ingredients || undefined
       const productImageUrl: string | undefined = item.images?.[0] || undefined
       if (ingredients) {
+        if (productName) {
+          saveToCache(supabase, { barcode, product_name: productName, raw_ingredients: ingredients, product_image_url: productImageUrl, source: 'upcitemdb' })
+        }
         return NextResponse.json({ barcode, product_name: productName, ingredients, product_image_url: productImageUrl })
       }
       if (productName && !foundName) foundName = productName
@@ -637,14 +440,23 @@ async function lookupBarcode(barcode: string) {
   if (foundName) {
     const fdaByName = await lookupOpenFDAByName(foundName)
     if (fdaByName) {
+      saveToCache(supabase, { barcode, product_name: fdaByName.product_name, raw_ingredients: fdaByName.ingredients, source: 'openfda_name' })
       return NextResponse.json({ barcode, ...fdaByName, ...(foundImageUrl ? { product_image_url: foundImageUrl } : {}) })
     }
   }
 
   // 7. Name search across all Open*Facts networks + web scraping fallback
   if (foundName) {
-    const nameSearch = await fetchProductByName(foundName)
+    const nameSearch = await fetchProductByName(foundName, supabase)
     if (nameSearch) {
+      // Also upsert with barcode so future barcode scans hit cache directly
+      saveToCache(supabase, {
+        barcode,
+        product_name: nameSearch.product_name,
+        raw_ingredients: nameSearch.ingredients,
+        product_image_url: nameSearch.product_image_url,
+        source: 'name_search',
+      })
       return NextResponse.json({
         barcode,
         product_name: nameSearch.product_name,
@@ -662,42 +474,61 @@ async function lookupBarcode(barcode: string) {
 }
 
 async function fetchProductByName(
-  query: string
+  query: string,
+  supabase: Supabase
 ): Promise<{ product_name: string; ingredients: string; product_image_url?: string } | null> {
-  const queries = buildProductSearchQueries(query)
+  // ── Cache check ──────────────────────────────────────────────────────────
+  const { data: cached } = await supabase
+    .from('product_cache')
+    .select('id, product_name, raw_ingredients, product_image_url, hit_count')
+    .ilike('product_name', query)
+    .order('hit_count', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  for (const searchQuery of queries) {
-    const obviousActiveIngredient = extractLabelActiveIngredientFromName(searchQuery)
-    if (obviousActiveIngredient) return obviousActiveIngredient
+  if (cached) {
+    void supabase.from('product_cache')
+      .update({ hit_count: (cached.hit_count ?? 0) + 1 })
+      .eq('id', cached.id)
+    return {
+      product_name: cached.product_name,
+      ingredients: cached.raw_ingredients,
+      product_image_url: cached.product_image_url ?? undefined,
+    }
   }
+  // ─────────────────────────────────────────────────────────────────────────
 
-  for (const searchQuery of queries) {
-    const [foodResult, beautyResult, productsResult] = await Promise.all([
-      searchOpenFoodNetwork('openfoodfacts', searchQuery),
-      searchOpenFoodNetwork('openbeautyfacts', searchQuery),
-      searchOpenFoodNetwork('openproductsfacts', searchQuery),
-    ])
+  const [foodResult, beautyResult, productsResult] = await Promise.all([
+    searchOpenFoodNetwork('openfoodfacts', query),
+    searchOpenFoodNetwork('openbeautyfacts', query),
+    searchOpenFoodNetwork('openproductsfacts', query),
+  ])
 
-    for (const result of [foodResult, beautyResult, productsResult]) {
-      if (result) return result
+  for (const result of [foodResult, beautyResult, productsResult]) {
+    if (result) {
+      saveToCache(supabase, { product_name: result.product_name, raw_ingredients: result.ingredients, product_image_url: result.product_image_url, source: 'name_search' })
+      return result
     }
   }
 
-  for (const searchQuery of queries) {
-    const fdaResult = await lookupOpenFDAByName(searchQuery)
-    if (fdaResult) return { ...fdaResult }
+  const fdaResult = await lookupOpenFDAByName(query)
+  if (fdaResult) {
+    saveToCache(supabase, { product_name: fdaResult.product_name, raw_ingredients: fdaResult.ingredients, source: 'openfda' })
+    return { ...fdaResult }
   }
 
-
   // Web scraping fallback — search the web and extract ingredients via AI
-  const webResult = await webScrapeForIngredients(queries[0], queries.slice(1))
-  if (webResult) return webResult
+  const webResult = await webScrapeForIngredients(query)
+  if (webResult) {
+    saveToCache(supabase, { product_name: webResult.product_name, raw_ingredients: webResult.ingredients, source: 'web_scrape' })
+    return webResult
+  }
 
   return null
 }
 
-async function searchProductByName(query: string) {
-  const result = await fetchProductByName(query)
+async function searchProductByName(query: string, supabase: Supabase) {
+  const result = await fetchProductByName(query, supabase)
   if (result) return NextResponse.json(result)
 
   return NextResponse.json(

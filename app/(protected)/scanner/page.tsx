@@ -152,7 +152,7 @@ export default function ScannerPage() {
     setCameraUnsupported(false)
   }
 
-  async function runAnalysis(productName: string | undefined, ingredients: string, file?: File | null, offImageUrl?: string | null) {
+  async function runAnalysis(productName: string | undefined, ingredients: string, file?: File | null, offImageUrl?: string | null, barcode?: string) {
     if (!ingredients.trim()) {
       setExtractState({ status: 'error', message: 'No ingredients found. Try the other tab or a clearer photo.' })
       return
@@ -186,6 +186,7 @@ export default function ScannerPage() {
         product_name: productName || undefined,
         ingredients: ingredients.trim(),
         image_url: imageUrl,
+        barcode: barcode || undefined,
       }),
     })
 
@@ -302,7 +303,7 @@ export default function ScannerPage() {
         return
       }
       setExtractState({ status: 'loading', message: 'Analyzing ingredients…', step: 2, totalSteps: 2 })
-      await runAnalysis(json.product_name, json.ingredients, null, json.product_image_url)
+      await runAnalysis(json.product_name, json.ingredients, null, json.product_image_url, barcode)
     } catch {
       setExtractState({ status: 'error', message: 'Network error. Please try again.' })
     }

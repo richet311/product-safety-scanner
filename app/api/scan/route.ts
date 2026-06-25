@@ -64,11 +64,13 @@ export async function POST(request: Request) {
   let ingredients: string
   let productName: string | undefined
   let imageUrl: string | undefined
+  let barcode: string | undefined
   try {
     const body = await request.json()
     ingredients = String(body.ingredients ?? '').trim()
     productName = body.product_name ? String(body.product_name).trim() : undefined
     imageUrl = body.image_url ? String(body.image_url).trim() : undefined
+    barcode = body.barcode ? String(body.barcode).trim() : undefined
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -147,12 +149,22 @@ ${ingredients}`
       analysis,
       overall_grade: safeGrade,
       image_url: imageUrl ?? null,
+      barcode: barcode ?? null,
     })
     .select('id')
     .single()
 
   if (scanError) {
     console.error('[scan] insert failed:', scanError.message)
+  }
+
+  // Cache photo scan results (barcode scans are cached by /api/extract)
+  if (!scanError && productName && ingredients && !barcode) {
+    void supabase.from('product_cache').insert({
+      product_name: productName,
+      raw_ingredients: ingredients,
+      source: 'photo_scan',
+    })
   }
 
   return NextResponse.json({
