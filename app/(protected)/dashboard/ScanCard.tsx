@@ -4,19 +4,18 @@ import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { deleteScan } from './actions'
 
-type Ingredient = {
-  name: string
-  grade: 'A' | 'B' | 'C' | 'D'
-  concern: string | null
-  safe: boolean
-}
-
 export type Scan = {
   id: string
   product_name: string | null
   image_url: string | null
   overall_grade: 'A' | 'B' | 'C' | 'D'
-  analysis: { summary: string; ingredients: Ingredient[] }
+  analysis: {
+    summary: string
+    // new format
+    concern_ingredients?: { safe: boolean; flagged?: boolean }[]
+    // legacy format
+    ingredients?: { safe: boolean; flagged?: boolean }[]
+  }
   created_at: string
 }
 
@@ -200,7 +199,10 @@ function DeleteModal({
 
 export function ScanCard({ scan }: { scan: Scan }) {
   const g = GRADE[scan.overall_grade]
-  const concerns = scan.analysis?.ingredients?.filter(i => !i.safe).length ?? 0
+  const concerns =
+    scan.analysis?.concern_ingredients?.length ??
+    scan.analysis?.ingredients?.filter(i => !i.safe).length ??
+    0
   const date = new Date(scan.created_at)
   const [pending, startTransition] = useTransition()
   const [showModal, setShowModal] = useState(false)

@@ -39,7 +39,12 @@ type IngredientResult = {
 type AnalysisResult = {
   overall_grade: 'A' | 'B' | 'C' | 'D'
   summary: string
-  ingredients: IngredientResult[]
+  // new format
+  key_ingredients?: IngredientResult[]
+  concern_ingredients?: IngredientResult[]
+  total_ingredients_count?: number
+  // legacy format
+  ingredients?: IngredientResult[]
   user_alerts?: string[]
 }
 
@@ -719,11 +724,60 @@ export default function ScannerPage() {
   )
 }
 
+function normalizeAnalysis(analysis: AnalysisResult) {
+  if (analysis.key_ingredients !== undefined || analysis.concern_ingredients !== undefined) {
+    return {
+      keyIngredients: analysis.key_ingredients ?? [],
+      concernIngredients: analysis.concern_ingredients ?? [],
+      totalCount: analysis.total_ingredients_count,
+    }
+  }
+  const all = analysis.ingredients ?? []
+  return {
+    keyIngredients: all.filter(i => i.safe && !i.flagged && i.grade !== 'C' && i.grade !== 'D'),
+    concernIngredients: all.filter(i => !i.safe || i.flagged || i.grade === 'C' || i.grade === 'D'),
+    totalCount: all.length || undefined,
+  }
+}
+
+function IngredientRowInline({ ing }: { ing: IngredientResult }) {
+  const ic = GRADE_CFG[ing.grade]
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: '10px',
+      padding: ing.flagged ? '8px 10px' : '0',
+      borderRadius: ing.flagged ? '10px' : '0',
+      background: ing.flagged ? 'rgba(239,68,68,0.05)' : 'transparent',
+      border: ing.flagged ? '1px solid rgba(239,68,68,0.15)' : 'none',
+    }}>
+      <div style={{
+        width: 28, height: 28, borderRadius: '50%',
+        background: ing.flagged ? 'rgba(239,68,68,0.12)' : ic.bg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '11px', fontWeight: 800,
+        color: ing.flagged ? '#ef4444' : ic.color, flexShrink: 0,
+      }}>
+        {ing.flagged ? '!' : ing.grade}
+      </div>
+      <div style={{ flex: 1, paddingTop: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: ing.flagged ? '#b91c1c' : '#0f172a' }}>{ing.name}</p>
+          {ing.flagged && <span style={{ fontSize: '9px', fontWeight: 800, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: '5px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Alert</span>}
+        </div>
+        {ing.concern && <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>{ing.concern}</p>}
+      </div>
+    </div>
+  )
+}
+
 function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis: AnalysisResult; productName: string; saveError?: string }; onReset: () => void; onViewDashboard: () => void }) {
   const { analysis, productName, saveError } = result
   const cfg = GRADE_CFG[analysis.overall_grade]
-  const concerns = analysis.ingredients.filter(i => !i.safe).length
   const userAlerts = analysis.user_alerts ?? []
+  const { keyIngredients, concernIngredients, totalCount } = normalizeAnalysis(analysis)
+  const shownCount = keyIngredients.length + concernIngredients.filter(
+    c => !keyIngredients.some(k => k.name === c.name)
+  ).length
 
   return (
     <div style={{ marginTop: '20px', background: '#fff', borderRadius: '20px', border: '1px solid #e9eef4', overflow: 'hidden', boxShadow: '0 6px 28px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -734,12 +788,16 @@ function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis
         <div style={{ flex: 1 }}>
           <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: '15px', color: '#0f172a' }}>{productName}</p>
           <p style={{ margin: 0, fontSize: '13px', color: cfg.color, fontWeight: 600 }}>{cfg.label}</p>
-          {concerns > 0 && <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>{concerns} ingredient{concerns !== 1 ? 's' : ''} with concerns</p>}
+          {concernIngredients.length > 0 && (
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+              {concernIngredients.length} concern{concernIngredients.length !== 1 ? 's' : ''} found
+            </p>
+          )}
         </div>
       </div>
 
       {userAlerts.length > 0 && (
-        <div style={{ margin: '0 20px 0', padding: '12px 14px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px', marginTop: '14px' }}>
+        <div style={{ margin: '14px 20px 0', padding: '12px 14px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px' }}>
           <p style={{ margin: '0 0 6px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.09em', color: '#ef4444', textTransform: 'uppercase' }}>Personal Alerts</p>
           {userAlerts.map((alert, i) => (
             <p key={i} style={{ margin: 0, fontSize: '12.5px', color: '#b91c1c', fontWeight: 600, lineHeight: 1.5 }}>⚠ {alert}</p>
@@ -753,34 +811,35 @@ function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis
         </div>
       )}
 
-      <div style={{ padding: '14px 20px' }}>
-        <p style={{ margin: '0 0 12px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: '#94a3b8', textTransform: 'uppercase' }}>Ingredients</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {analysis.ingredients.map((ing, i) => {
-            const ic = GRADE_CFG[ing.grade]
-            return (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: '10px',
-                padding: ing.flagged ? '8px 10px' : '0',
-                borderRadius: ing.flagged ? '10px' : '0',
-                background: ing.flagged ? 'rgba(239,68,68,0.05)' : 'transparent',
-                border: ing.flagged ? '1px solid rgba(239,68,68,0.15)' : 'none',
-              }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: ing.flagged ? 'rgba(239,68,68,0.12)' : ic.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: ing.flagged ? '#ef4444' : ic.color, flexShrink: 0 }}>
-                  {ing.flagged ? '!' : ing.grade}
-                </div>
-                <div style={{ flex: 1, paddingTop: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: ing.flagged ? '#b91c1c' : '#0f172a' }}>{ing.name}</p>
-                    {ing.flagged && <span style={{ fontSize: '9px', fontWeight: 800, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: '5px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Alert</span>}
-                  </div>
-                  {ing.concern && <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>{ing.concern}</p>}
-                </div>
-              </div>
-            )
-          })}
+      {concernIngredients.length > 0 && (
+        <div style={{ padding: '14px 20px 10px', borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '12px' }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#f97316' }} />
+            <p style={{ margin: 0, fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.08em', color: '#94a3b8', textTransform: 'uppercase' }}>Potential Concerns</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {concernIngredients.map((ing, i) => <IngredientRowInline key={i} ing={ing} />)}
+          </div>
         </div>
-      </div>
+      )}
+
+      {keyIngredients.length > 0 && (
+        <div style={{ padding: '14px 20px 10px', borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '12px' }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C37A' }} />
+            <p style={{ margin: 0, fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.08em', color: '#94a3b8', textTransform: 'uppercase' }}>Key Ingredients</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {keyIngredients.map((ing, i) => <IngredientRowInline key={i} ing={ing} />)}
+          </div>
+        </div>
+      )}
+
+      {totalCount != null && shownCount < totalCount && (
+        <p style={{ margin: '4px 20px 10px', fontSize: '12px', color: '#cbd5e1', textAlign: 'center' }}>
+          + {totalCount - shownCount} additional ingredients analyzed
+        </p>
+      )}
 
       {saveError && (
         <div style={{ margin: '0 20px 14px', padding: '10px 13px', borderRadius: '10px', background: '#fff7ed', border: '1px solid #fed7aa', fontSize: '12.5px', color: '#9a3412', lineHeight: 1.5 }}>
@@ -788,7 +847,7 @@ function InlineResult({ result, onReset, onViewDashboard }: { result: { analysis
         </div>
       )}
 
-      <div style={{ padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ padding: '10px 20px 18px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #f1f5f9' }}>
         <button
           type="button"
           onClick={onViewDashboard}

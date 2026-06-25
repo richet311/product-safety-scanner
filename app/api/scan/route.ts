@@ -74,7 +74,12 @@ type IngredientAnalysis = {
 type ScanAnalysis = {
   overall_grade: 'A' | 'B' | 'C' | 'D'
   summary: string
-  ingredients: IngredientAnalysis[]
+  // new format
+  key_ingredients?: IngredientAnalysis[]
+  concern_ingredients?: IngredientAnalysis[]
+  total_ingredients_count?: number
+  // legacy format (existing scans in DB)
+  ingredients?: IngredientAnalysis[]
   user_alerts?: string[]
 }
 
@@ -148,7 +153,13 @@ ${productName ? `\nProduct: ${productName}` : ''}
 This product may be a food, beverage, medication, supplement, cosmetic, skincare product, personal care item, or household product. Grade each ingredient based on safety for its intended use (oral, topical, inhalation, etc.) — infer the usage context from the product name and ingredient list.
 
 Schema:
-{"overall_grade":"A"|"B"|"C"|"D","summary":"1-2 sentence safety assessment","ingredients":[{"name":"ingredient name","grade":"A"|"B"|"C"|"D","concern":"brief concern or null","safe":true|false,"flagged":false}],"user_alerts":[]}
+{"overall_grade":"A"|"B"|"C"|"D","summary":"1-2 sentence safety assessment","total_ingredients_count":N,"key_ingredients":[{"name":"ingredient name","grade":"A"|"B"|"C"|"D","concern":"brief note or null","safe":true|false,"flagged":false}],"concern_ingredients":[{"name":"ingredient name","grade":"A"|"B"|"C"|"D","concern":"specific concern","safe":false,"flagged":false}],"user_alerts":[]}
+
+key_ingredients: The 3-8 most notable functional or active ingredients worth highlighting — things that define what the product does or that a safety-conscious consumer would want to know about (e.g., vitamin C, retinol, niacinamide, hyaluronic acid, SPF filter actives like avobenzone/zinc oxide/oxybenzone, active drug ingredients, AHAs/BHAs). Skip generic filler ingredients (water, glycerin, petrolatum, simple emulsifiers) unless they are unusual or problematic. May include concern-level ingredients if they are key actives.
+
+concern_ingredients: ALL ingredients that may cause issues — anything graded C or D, known skin sensitizers or allergens (e.g., fragrance, methylisothiazolinone, formaldehyde releasers, common allergens), potential hormone disruptors (parabens, oxybenzone, triclosan), or any ingredient the user is flagged for. Return [] if none.
+
+total_ingredients_count: the total number of distinct ingredients in the full provided list (count all, even ones not returned in the arrays above).
 
 Grading scale:
 A = very safe, well-studied, no concerns
@@ -156,7 +167,7 @@ B = generally safe, minor concerns for some people
 C = use with caution, some studies show concerns
 D = potentially harmful, avoid if possible
 
-"flagged" means the ingredient directly conflicts with the user's allergies, dietary preferences, or health conditions.
+"flagged" means the ingredient directly conflicts with the user's allergies, dietary preferences, or health conditions. Mark in both key_ingredients and concern_ingredients when applicable.
 "user_alerts" is an array of short personal warning strings (e.g. "Contains Dairy — you are lactose intolerant"). Leave empty [] if no profile or no conflicts.
 ${profileSection}
 Ingredients list:

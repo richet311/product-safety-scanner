@@ -15,7 +15,16 @@ type Scan = {
   product_name: string | null
   image_url: string | null
   overall_grade: 'A' | 'B' | 'C' | 'D'
-  analysis: { summary: string; ingredients: Ingredient[]; user_alerts?: string[] }
+  analysis: {
+    summary: string
+    // new format
+    key_ingredients?: Ingredient[]
+    concern_ingredients?: Ingredient[]
+    total_ingredients_count?: number
+    // legacy format
+    ingredients?: Ingredient[]
+    user_alerts?: string[]
+  }
   created_at: string
 }
 
@@ -54,6 +63,68 @@ function GradeDonut({ grade }: { grade: keyof typeof GRADE }) {
   )
 }
 
+function normalizeAnalysis(analysis: Scan['analysis']) {
+  if (analysis?.key_ingredients !== undefined || analysis?.concern_ingredients !== undefined) {
+    return {
+      keyIngredients: analysis.key_ingredients ?? [],
+      concernIngredients: analysis.concern_ingredients ?? [],
+      totalCount: analysis.total_ingredients_count,
+    }
+  }
+  const all = analysis?.ingredients ?? []
+  return {
+    keyIngredients: all.filter(i => i.safe && !i.flagged && i.grade !== 'C' && i.grade !== 'D'),
+    concernIngredients: all.filter(i => !i.safe || i.flagged || i.grade === 'C' || i.grade === 'D'),
+    totalCount: all.length || undefined,
+  }
+}
+
+function IngredientRow({ ing, variant }: { ing: Ingredient; variant: 'concern' | 'key' }) {
+  const cfg = GRADE[ing.grade]
+  const isConcern = variant === 'concern'
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: '12px',
+      padding: ing.flagged ? '10px 12px' : (isConcern ? '8px 0' : '0'),
+      borderRadius: ing.flagged ? '12px' : '0',
+      background: ing.flagged ? 'rgba(239,68,68,0.05)' : 'transparent',
+      border: ing.flagged ? '1px solid rgba(239,68,68,0.15)' : 'none',
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        background: ing.flagged ? 'rgba(239,68,68,0.12)' : cfg.bg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '12px', fontWeight: 800,
+        color: ing.flagged ? '#ef4444' : cfg.color,
+        flexShrink: 0,
+      }}>
+        {ing.flagged ? '!' : ing.grade}
+      </div>
+      <div style={{ flex: 1, paddingTop: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <p style={{ margin: 0, fontSize: '14.5px', fontWeight: 600, color: ing.flagged ? '#b91c1c' : '#0f172a' }}>
+            {ing.name}
+          </p>
+          {ing.flagged && (
+            <span style={{
+              fontSize: '10px', fontWeight: 800, color: '#ef4444',
+              background: 'rgba(239,68,68,0.1)', padding: '2px 7px',
+              borderRadius: '6px', letterSpacing: '0.05em', textTransform: 'uppercase',
+            }}>
+              Personal Alert
+            </span>
+          )}
+        </div>
+        {ing.concern && (
+          <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: '#94a3b8', lineHeight: 1.5 }}>
+            {ing.concern}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default async function ScanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -72,9 +143,12 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
 
   const scan = data as Scan
   const cfg = GRADE[scan.overall_grade]
-  const concerns = scan.analysis?.ingredients?.filter(i => !i.safe).length ?? 0
-  const ingredientCount = scan.analysis?.ingredients?.length ?? 0
   const userAlerts = scan.analysis?.user_alerts ?? []
+  const { keyIngredients, concernIngredients, totalCount } = normalizeAnalysis(scan.analysis)
+
+  const shownCount = keyIngredients.length + concernIngredients.filter(
+    c => !keyIngredients.some(k => k.name === c.name)
+  ).length
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
@@ -87,6 +161,7 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
         @media (min-width: 640px) {
           .detail-wrap { padding: 36px 24px 60px; }
         }
+        .section-divider { height: 1px; background: #f1f5f9; margin: 0 22px 20px; }
       `}</style>
 
       <div className="detail-wrap">
@@ -139,7 +214,9 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
               {scan.product_name ?? 'Unknown Product'}
             </h1>
             <p style={{ color: '#64748b', fontSize: '14px', margin: '0 0 10px', fontWeight: 500 }}>
-              {concerns > 0 ? `${concerns} concern${concerns !== 1 ? 's' : ''} found` : 'No concerns found'}
+              {concernIngredients.length > 0
+                ? `${concernIngredients.length} concern${concernIngredients.length !== 1 ? 's' : ''} found`
+                : 'No concerns found'}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <span style={{
@@ -149,9 +226,11 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
               }}>
                 {cfg.label}
               </span>
-              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
-                {ingredientCount} ingredient{ingredientCount !== 1 ? 's' : ''}
-              </span>
+              {totalCount != null && (
+                <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
+                  {totalCount} ingredient{totalCount !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
           </div>
 
@@ -176,49 +255,64 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
             </div>
           )}
 
-          <div style={{ height: 1, background: '#f1f5f9', margin: '0 22px 20px' }} />
+          {concernIngredients.length > 0 && (
+            <>
+              <div className="section-divider" />
+              <div style={{ padding: '0 22px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
+                  <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.09em', color: '#94a3b8', textTransform: 'uppercase', margin: 0 }}>
+                    Potential Concerns
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {concernIngredients.map((ing, i) => (
+                    <IngredientRow key={i} ing={ing} variant="concern" />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
-          <div style={{ padding: '0 22px 28px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.09em', color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 16px' }}>
-              Ingredients Detected
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {scan.analysis?.ingredients?.map((ing, i) => {
-                const ic = GRADE[ing.grade]
-                return (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: '12px',
-                    padding: ing.flagged ? '10px 12px' : '0',
-                    borderRadius: ing.flagged ? '12px' : '0',
-                    background: ing.flagged ? 'rgba(239,68,68,0.05)' : 'transparent',
-                    border: ing.flagged ? '1px solid rgba(239,68,68,0.15)' : 'none',
-                  }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%',
-                      background: ing.flagged ? 'rgba(239,68,68,0.12)' : ic.bg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '12px', fontWeight: 800, color: ing.flagged ? '#ef4444' : ic.color, flexShrink: 0,
-                    }}>
-                      {ing.flagged ? '!' : ing.grade}
-                    </div>
-                    <div style={{ flex: 1, paddingTop: '5px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <p style={{ margin: 0, fontSize: '14.5px', fontWeight: 600, color: ing.flagged ? '#b91c1c' : '#0f172a' }}>{ing.name}</p>
-                        {ing.flagged && (
-                          <span style={{ fontSize: '10px', fontWeight: 800, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 7px', borderRadius: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                            Personal Alert
-                          </span>
-                        )}
-                      </div>
-                      {ing.concern && (
-                        <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: '#94a3b8', lineHeight: 1.5 }}>{ing.concern}</p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          {keyIngredients.length > 0 && (
+            <>
+              <div className="section-divider" />
+              <div style={{ padding: '0 22px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00C37A', flexShrink: 0 }} />
+                  <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.09em', color: '#94a3b8', textTransform: 'uppercase', margin: 0 }}>
+                    Key Ingredients
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {keyIngredients.map((ing, i) => (
+                    <IngredientRow key={i} ing={ing} variant="key" />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {concernIngredients.length === 0 && keyIngredients.length === 0 && (
+            <>
+              <div className="section-divider" />
+              <div style={{ padding: '0 22px 20px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '13.5px', color: '#94a3b8' }}>No notable ingredients to highlight.</p>
+              </div>
+            </>
+          )}
+
+          {totalCount != null && shownCount < totalCount && (
+            <>
+              <div className="section-divider" />
+              <p style={{
+                margin: '0 22px 20px',
+                fontSize: '12px', color: '#cbd5e1', textAlign: 'center',
+              }}>
+                + {totalCount - shownCount} additional ingredients analyzed
+              </p>
+            </>
+          )}
 
           <div style={{ padding: '0 22px 22px' }}>
             <Link
