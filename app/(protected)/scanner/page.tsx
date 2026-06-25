@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 const BarcodeCamera = dynamic(() => import('./BarcodeCamera'), { ssr: false })
 const CameraCapture = dynamic(() => import('./CameraCapture'), { ssr: false })
@@ -81,16 +82,17 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   },
 ]
 
-function getResetInStr() {
+function getResetInfo(): { countdown: string; localTime: string | null } {
   const now = new Date()
   const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
   const diff = nextMidnight.getTime() - now.getTime()
   const h = Math.floor(diff / 3600000)
   const m = Math.floor((diff % 3600000) / 60000)
-  if (h === 0 && m < 2) return 'in just a moment'
-  if (h === 0) return `in ${m} minute${m !== 1 ? 's' : ''}`
-  if (m < 5) return `in ${h} hour${h !== 1 ? 's' : ''}`
-  return `in ${h}h ${m}m`
+  const localTime = nextMidnight.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  if (h === 0 && m < 2) return { countdown: 'any moment now', localTime: null }
+  if (h === 0) return { countdown: `${m} minute${m !== 1 ? 's' : ''}`, localTime }
+  if (m < 5) return { countdown: `${h} hour${h !== 1 ? 's' : ''}`, localTime }
+  return { countdown: `${h}h ${m}m`, localTime }
 }
 
 export default function ScannerPage() {
@@ -559,31 +561,52 @@ export default function ScannerPage() {
           </p>
         </div>
 
-        {atDailyLimit && (
-          <div style={{
-            marginBottom: '18px', padding: '16px 18px', borderRadius: '16px',
-            background: '#fff7ed', border: '1.5px solid #fed7aa',
-            display: 'flex', gap: '13px', alignItems: 'flex-start',
-          }}>
+        {atDailyLimit && limitInfo && (() => {
+          const { countdown, localTime } = getResetInfo()
+          return (
             <div style={{
-              width: 38, height: 38, borderRadius: '50%',
-              background: 'rgba(249,115,22,0.12)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              background: '#fff', borderRadius: '24px',
+              border: '1.5px solid #fed7aa',
+              padding: '52px 28px 44px',
+              textAlign: 'center',
+              boxShadow: '0 6px 32px rgba(0,0,0,0.08)',
             }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-            </div>
-            <div>
-              <p style={{ margin: '0 0 3px', fontSize: '14px', fontWeight: 700, color: '#c2410c' }}>
-                Daily scan limit reached
+              <div style={{
+                width: 80, height: 80, borderRadius: '50%',
+                background: '#fff7ed', border: '2px solid #fed7aa',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 24px',
+              }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <h2 style={{ fontSize: '23px', fontWeight: 800, color: '#0f172a', margin: '0 0 12px', letterSpacing: '-0.3px' }}>
+                Daily limit reached
+              </h2>
+              <p style={{ fontSize: '14.5px', color: '#64748b', margin: '0 0 6px', lineHeight: 1.6 }}>
+                You&apos;ve used all <strong style={{ color: '#0f172a' }}>{limitInfo.limit}</strong> scans for today.
               </p>
-              <p style={{ margin: 0, fontSize: '13px', color: '#9a3412', lineHeight: 1.5 }}>
-                You&apos;ve used all {limitInfo?.limit} scans for today. New scans available {getResetInStr()}.
+              <p style={{ fontSize: '14.5px', color: '#64748b', margin: '0 0 36px', lineHeight: 1.6 }}>
+                New scans available in{' '}
+                <strong style={{ color: '#c2410c' }}>{countdown}</strong>
+                {localTime ? <> — at <strong style={{ color: '#c2410c' }}>{localTime}</strong> your local time</> : ''}.
               </p>
+              <Link href="/dashboard" style={{
+                display: 'block', padding: '14px', borderRadius: '14px',
+                background: 'linear-gradient(135deg, #00C37A 0%, #00a868 100%)',
+                color: '#fff', fontWeight: 700, fontSize: '15px',
+                textDecoration: 'none',
+                boxShadow: '0 4px 16px rgba(0,195,122,0.28)',
+              }}>
+                Go to Dashboard
+              </Link>
             </div>
-          </div>
-        )}
+          )
+        })()}
+
+        {!atDailyLimit && (<>
 
         <div className="tab-bar">
           {TABS.map(t => (
@@ -784,6 +807,8 @@ export default function ScannerPage() {
             )}
           </>
         )}
+
+        </>)}
 
         {inlineResult && (
           <InlineResult result={inlineResult} onReset={() => {
