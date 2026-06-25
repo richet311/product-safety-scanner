@@ -141,49 +141,66 @@ function extractOpenFDAIngredients(
   return { product_name: productName, ingredients }
 }
 
-// Web scraping fallback: DuckDuckGo search → Jina Reader → AI extraction
+// Web scraping fallback: DuckDuckGo (general + Amazon-specific) → Jina Reader → AI extraction
 async function webScrapeForIngredients(
   productName: string
 ): Promise<{ product_name: string; ingredients: string } | null> {
   try {
-    // Step 1: Search DuckDuckGo HTML for the product + "ingredients"
-    const query = encodeURIComponent(`${productName} ingredients`)
-    const ddgRes = await fetch(`https://html.duckduckgo.com/html/?q=${query}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html',
-      },
-      signal: AbortSignal.timeout(6000),
-    })
-    if (!ddgRes.ok) return null
-    const html = await ddgRes.text()
+    const DDG_HEADERS = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html',
+    }
+    const SKIP_DOMAINS = ['duckduckgo.com', 'wikipedia.org', 'twitter.com', 'facebook.com', 'reddit.com', 'youtube.com']
 
-    // Step 2: Extract top result URLs from DuckDuckGo HTML (encoded in uddg= param)
-    const urlMatches = [...html.matchAll(/uddg=([^"&\s]+)/g)]
+    // Run two DDG searches in parallel: general ingredients search + Amazon-specific
+    const [generalRes, amazonRes] = await Promise.allSettled([
+      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(productName + ' ingredients')}`, {
+        headers: DDG_HEADERS,
+        signal: AbortSignal.timeout(5000),
+      }),
+      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent('site:amazon.com ' + productName)}`, {
+        headers: DDG_HEADERS,
+        signal: AbortSignal.timeout(5000),
+      }),
+    ])
+
+    const extractUrls = (html: string, limit: number): string[] => {
+      const urls: string[] = []
+      for (const m of html.matchAll(/uddg=([^"&\s]+)/g)) {
+        try {
+          const decoded = decodeURIComponent(m[1])
+          if (decoded.startsWith('http') && !SKIP_DOMAINS.some(d => decoded.includes(d)) && urls.length < limit) {
+            urls.push(decoded)
+          }
+        } catch {}
+      }
+      return urls
+    }
+
+    const generalHtml = generalRes.status === 'fulfilled' && generalRes.value.ok ? await generalRes.value.text() : ''
+    const amazonHtml = amazonRes.status === 'fulfilled' && amazonRes.value.ok ? await amazonRes.value.text() : ''
+
+    const amazonUrls = extractUrls(amazonHtml, 3)
+    const generalUrls = extractUrls(generalHtml, 4)
+
+    // Merge: Amazon-specific results first, then general (deduped)
+    const seen = new Set<string>()
     const candidateUrls: string[] = []
-    for (const m of urlMatches) {
-      try {
-        const decoded = decodeURIComponent(m[1])
-        // Skip wikis, DDG itself, and social media — prefer product/pharmacy/brand sites
-        if (
-          decoded.startsWith('http') &&
-          !decoded.includes('duckduckgo.com') &&
-          !decoded.includes('wikipedia.org') &&
-          !decoded.includes('twitter.com') &&
-          !decoded.includes('facebook.com') &&
-          !decoded.includes('reddit.com') &&
-          candidateUrls.length < 4
-        ) {
-          candidateUrls.push(decoded)
-        }
-      } catch {}
-    }
-    if (!candidateUrls.length) {
-      console.warn('[extract] web scrape: no URLs found in DDG results')
-      return null
+    for (const url of [...amazonUrls, ...generalUrls]) {
+      if (!seen.has(url) && candidateUrls.length < 6) {
+        seen.add(url)
+        candidateUrls.push(url)
+      }
     }
 
-    // Step 3: Try each URL through Jina Reader until we get usable content
+    // If DDG didn't surface any Amazon URLs, inject a direct Amazon search
+    if (!candidateUrls.some(u => u.includes('amazon.com'))) {
+      candidateUrls.unshift(`https://www.amazon.com/s?k=${encodeURIComponent(productName)}`)
+    }
+
+    if (!candidateUrls.length) return null
+
+    // Try each URL through Jina Reader until we get usable content
     let pageContent = ''
     let pageUrl = ''
     for (const url of candidateUrls) {
@@ -194,7 +211,6 @@ async function webScrapeForIngredients(
         })
         if (!jinaRes.ok) continue
         const text = await jinaRes.text()
-        // Need at least 400 chars of real content
         if (text && text.length > 400) {
           pageContent = text
           pageUrl = url
@@ -202,6 +218,7 @@ async function webScrapeForIngredients(
         }
       } catch {}
     }
+
     if (!pageContent) {
       console.warn('[extract] web scrape: Jina Reader returned no usable content')
       return null
@@ -209,7 +226,6 @@ async function webScrapeForIngredients(
 
     console.log(`[extract] web scrape: fetched ${pageContent.length} chars from ${pageUrl}`)
 
-    // Step 4: Use AI to extract ingredient list from the page text
     const extractPrompt = `From the following product page content, find and extract the complete ingredient list for "${productName}".
 Return ONLY valid JSON with this exact schema:
 {"product_name": "exact product name as shown on the page, or null", "ingredients": "full ingredient list as plain text, or null"}

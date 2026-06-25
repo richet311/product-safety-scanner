@@ -1,26 +1,29 @@
 'use client'
 
-type ScanItem = { created_at: string }
+type EventItem = { created_at: string }
 
-export function DailyUsage({ scans, dailyLimit }: { scans: ScanItem[]; dailyLimit: number }) {
+export function DailyUsage({ scanEvents, dailyLimit }: { scanEvents: EventItem[]; dailyLimit: number }) {
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
   const tomorrowStart = new Date(todayStart.getTime() + 86400000)
 
-  const todayCount = scans.filter(s => {
-    const t = new Date(s.created_at)
+  const usedToday = scanEvents.filter(e => {
+    const t = new Date(e.created_at)
     return t >= todayStart && t < tomorrowStart
   }).length
 
-  const remaining = dailyLimit - todayCount
-  const atLimit = todayCount >= dailyLimit
-  const usagePct = Math.min((remaining / dailyLimit) * 100, 100)
+  const remaining = Math.max(dailyLimit - usedToday, 0)
+  const atLimit = usedToday >= dailyLimit
+  const fillPct = Math.min((remaining / dailyLimit) * 100, 100)
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '320px' }}>
-      <div style={{ flex: 1, height: '5px', background: '#f1f5f9', borderRadius: '99px', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '300px', minWidth: 0 }}>
+      <div style={{
+        flex: 1, height: '5px', background: '#f1f5f9',
+        borderRadius: '99px', overflow: 'hidden', minWidth: '60px',
+      }}>
         <div style={{
-          width: `${usagePct}%`,
+          width: `${fillPct}%`,
           height: '100%',
           borderRadius: '99px',
           transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
@@ -32,9 +35,9 @@ export function DailyUsage({ scans, dailyLimit }: { scans: ScanItem[]; dailyLimi
       <span style={{
         fontSize: '12px', fontWeight: 600,
         color: atLimit ? '#ef4444' : '#94a3b8',
-        whiteSpace: 'nowrap', fontFamily: 'inherit',
+        whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
       }}>
-        {atLimit ? 'Limit reached' : `${remaining} / ${dailyLimit} left today`}
+        {atLimit ? 'Limit reached' : `${remaining} / ${dailyLimit} left`}
       </span>
     </div>
   )

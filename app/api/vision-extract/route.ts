@@ -73,7 +73,7 @@ Instructions:
       return NextResponse.json(
         {
           error:
-            "Couldn't read the ingredient list from this photo. Make sure the label is in focus and well-lit, then try again.",
+            "Unable to recognize this product's ingredients. Try scanning the ingredient label directly for best results.",
           product_name: result.product_name ?? null,
         },
         { status: 404 }

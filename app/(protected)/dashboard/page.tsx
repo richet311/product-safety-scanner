@@ -37,7 +37,10 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [scansResult, profileResult] = await Promise.all([
+  // Fetch last 48 h of events so the client can filter by local "today" regardless of timezone offset
+  const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString()
+
+  const [scansResult, profileResult, eventsResult] = await Promise.all([
     supabase
       .from('scans')
       .select('id, product_name, image_url, overall_grade, analysis, created_at')
@@ -49,9 +52,15 @@ export default async function DashboardPage() {
       .select('daily_scan_limit')
       .eq('id', user.id)
       .single(),
+    supabase
+      .from('scan_events')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .gte('created_at', twoDaysAgo),
   ])
 
   const scans: Scan[] = scansResult.data ?? []
+  const scanEvents: { created_at: string }[] = eventsResult.data ?? []
   const dailyLimit = (profileResult.data as { daily_scan_limit?: number } | null)?.daily_scan_limit ?? DEFAULT_DAILY_LIMIT
 
   const gradeScore = { A: 4, B: 3, C: 2, D: 1 } as const
@@ -143,10 +152,14 @@ export default async function DashboardPage() {
         @media (min-width: 640px) {
           .scan-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
         }
+        @media (min-width: 1060px) {
+          .scan-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        }
 
         .scan-card-img { height: 160px; }
         @media (min-width: 480px) { .scan-card-img { height: 115px; } }
         @media (min-width: 640px) { .scan-card-img { height: 160px; } }
+        @media (min-width: 1060px) { .scan-card-img { height: 130px; } }
 
         .scan-card-body { padding: 8px 10px 10px; }
         @media (min-width: 640px) { .scan-card-body { padding: 14px 16px 16px; } }
@@ -249,7 +262,7 @@ export default async function DashboardPage() {
               }}>
                 Your Scans
               </h1>
-              <DailyUsage scans={scans} dailyLimit={dailyLimit} />
+              <DailyUsage scanEvents={scanEvents} dailyLimit={dailyLimit} />
             </div>
             <Link href="/scanner" className="new-scan-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
