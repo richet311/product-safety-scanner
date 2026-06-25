@@ -152,17 +152,27 @@ async function webScrapeForIngredients(
     }
     const SKIP_DOMAINS = ['duckduckgo.com', 'wikipedia.org', 'twitter.com', 'facebook.com', 'reddit.com', 'youtube.com']
 
-    // Run two DDG searches in parallel: general ingredients search + Amazon-specific
-    const [generalRes, amazonRes] = await Promise.allSettled([
-      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(productName + ' ingredients')}`, {
-        headers: DDG_HEADERS,
-        signal: AbortSignal.timeout(5000),
-      }),
-      fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent('site:amazon.com ' + productName)}`, {
-        headers: DDG_HEADERS,
-        signal: AbortSignal.timeout(5000),
-      }),
-    ])
+    const searches = [
+      `${productName} ingredients`,
+      `"${productName}" ingredients`,
+      `${productName} full ingredient list`,
+      `${productName} active ingredient`,
+      `site:cosrx.com ${productName} ingredients`,
+      `site:incidecoder.com ${productName}`,
+      `site:amazon.com ${productName} ingredients`,
+      `site:amazon.com ${productName}`,
+    ]
+
+    const searchResults = await Promise.allSettled(
+      searches.map(search =>
+        fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(search)}`, {
+          headers: DDG_HEADERS,
+          signal: AbortSignal.timeout(5000),
+        })
+      )
+    )
+
+    const directAmazonUrl = `https://www.amazon.com/s?k=${encodeURIComponent(productName)}`
 
     const extractUrls = (html: string, limit: number): string[] => {
       const urls: string[] = []
@@ -177,34 +187,69 @@ async function webScrapeForIngredients(
       return urls
     }
 
-    const generalHtml = generalRes.status === 'fulfilled' && generalRes.value.ok ? await generalRes.value.text() : ''
-    const amazonHtml = amazonRes.status === 'fulfilled' && amazonRes.value.ok ? await amazonRes.value.text() : ''
-
-    const amazonUrls = extractUrls(amazonHtml, 3)
-    const generalUrls = extractUrls(generalHtml, 4)
-
-    // Merge: Amazon-specific results first, then general (deduped)
     const seen = new Set<string>()
     const candidateUrls: string[] = []
-    for (const url of [...amazonUrls, ...generalUrls]) {
-      if (!seen.has(url) && candidateUrls.length < 6) {
-        seen.add(url)
-        candidateUrls.push(url)
+
+    for (const result of searchResults) {
+      const html = result.status === 'fulfilled' && result.value.ok ? await result.value.text() : ''
+      for (const url of extractUrls(html, 4)) {
+        if (!seen.has(url) && candidateUrls.length < 12) {
+          seen.add(url)
+          candidateUrls.push(url)
+        }
       }
     }
 
-    // If DDG didn't surface any Amazon URLs, inject a direct Amazon search
     if (!candidateUrls.some(u => u.includes('amazon.com'))) {
-      candidateUrls.unshift(`https://www.amazon.com/s?k=${encodeURIComponent(productName)}`)
+      candidateUrls.push(directAmazonUrl)
     }
 
     if (!candidateUrls.length) return null
 
-    // Try each URL through Jina Reader — prefer pages that actually mention ingredients
-    let pageContent = ''
-    let pageUrl = ''
-    let fallbackContent = ''
-    let fallbackUrl = ''
+    const sliceRelevantProductSections = (content: string, isAmazonPage: boolean): string => {
+      const lowerContent = content.toLowerCase()
+      const sectionNeedles = [
+        'ingredients',
+        'active ingredient',
+        'inactive ingredient',
+        'drug facts',
+        'important information',
+        'about this item',
+        'features & specs',
+        'features and specs',
+        'product specifications',
+        'see all product specifications',
+        'specifications',
+      ]
+
+      const starts = sectionNeedles
+        .map(needle => lowerContent.indexOf(needle))
+        .filter(idx => idx >= 0)
+        .sort((a, b) => a - b)
+
+      if (!starts.length) return content.slice(0, 9000)
+
+      const snippets: string[] = []
+      const seenRanges = new Set<string>()
+      const maxSnippets = isAmazonPage ? 6 : 4
+
+      for (const idx of starts) {
+        const start = Math.max(0, idx - 500)
+        const end = Math.min(content.length, idx + 3500)
+        const rangeKey = `${Math.floor(start / 1000)}:${Math.floor(end / 1000)}`
+        if (seenRanges.has(rangeKey)) continue
+        seenRanges.add(rangeKey)
+        snippets.push(content.slice(start, end))
+        if (snippets.length >= maxSnippets) break
+      }
+
+      const combined = snippets.join('\n\n--- section break ---\n\n')
+      return combined.length > 12000 ? combined.slice(0, 12000) : combined
+    }
+
+    type ScrapedPage = { url: string; text: string; hasRelevantText: boolean }
+    const scrapedPages: ScrapedPage[] = []
+
     for (const url of candidateUrls) {
       try {
         const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
@@ -214,62 +259,68 @@ async function webScrapeForIngredients(
         if (!jinaRes.ok) continue
         const text = await jinaRes.text()
         if (!text || text.length < 400) continue
-        if (text.toLowerCase().includes('ingredient')) {
-          pageContent = text
-          pageUrl = url
-          break
-        }
-        if (!fallbackContent) {
-          fallbackContent = text
-          fallbackUrl = url
-        }
+        scrapedPages.push({
+          url,
+          text,
+          hasRelevantText: /ingredient|drug facts|important information|about this item|features (&|and) specs|product specifications/i.test(text),
+        })
       } catch {}
     }
 
-    // Fall back to first usable page if none had "ingredient"
-    if (!pageContent && fallbackContent) {
-      pageContent = fallbackContent
-      pageUrl = fallbackUrl
-    }
-
-    if (!pageContent) {
+    if (!scrapedPages.length) {
       console.warn('[extract] web scrape: Jina Reader returned no usable content')
       return null
     }
 
-    console.log(`[extract] web scrape: fetched ${pageContent.length} chars from ${pageUrl}`)
+    scrapedPages.sort((a, b) => {
+      if (a.hasRelevantText !== b.hasRelevantText) return a.hasRelevantText ? -1 : 1
+      const aIsAmazon = a.url.includes('amazon.com')
+      const bIsAmazon = b.url.includes('amazon.com')
+      if (aIsAmazon !== bIsAmazon) return aIsAmazon ? 1 : -1
+      return 0
+    })
 
-    // Smart content slicing: if ingredient section is deep in the page, focus on it
-    let contentForAI: string
-    const lowerContent = pageContent.toLowerCase()
-    const ingIdx = lowerContent.indexOf('ingredient')
-    if (ingIdx > 3000) {
-      const start = Math.max(0, ingIdx - 600)
-      contentForAI = pageContent.slice(start, start + 9000)
-    } else {
-      contentForAI = pageContent.slice(0, 9000)
+    const pagesToTry = scrapedPages.slice(0, 10)
+    const firstAmazonPage = scrapedPages.find(page => page.url.includes('amazon.com'))
+    if (firstAmazonPage && !pagesToTry.some(page => page.url === firstAmazonPage.url)) {
+      pagesToTry.push(firstAmazonPage)
     }
 
-    const extractPrompt = `From the following product page content, find and extract the complete ingredient list for "${productName}".
+    for (const page of pagesToTry) {
+      console.log(`[extract] web scrape: fetched ${page.text.length} chars from ${page.url}`)
+
+      const isAmazonPage = page.url.includes('amazon.com')
+      const contentForAI = sliceRelevantProductSections(page.text, isAmazonPage)
+
+      const extractPrompt = `From the following product page content, find and extract the complete ingredient list for "${productName}".
 Return ONLY valid JSON with this exact schema:
 {"product_name": "exact product name as shown on the page, or null", "ingredients": "full ingredient list as plain text, or null"}
 Rules:
 - Only return ingredients if you can clearly identify an actual ingredient list (not product descriptions or marketing text)
-- Do NOT invent, guess, or hallucinate ingredients — if unsure, return null for ingredients
+- On Amazon pages, inspect About this item, Features & Specs, See all product Specifications, Product specifications, Drug Facts, and Important information; ingredients often appear there instead of in the title area
+- Do NOT invent, guess, or hallucinate ingredients; if unsure, return null for ingredients
 - Include both active and inactive ingredients if both are present
 - Return the ingredients as a single plain text string (comma-separated or as-is from the page)
 
 Page content:
 ${contentForAI}`
 
-    const aiContent = await callAI(extractPrompt, 1024)
-    const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
+      try {
+        const aiContent = await callAI(extractPrompt, 1024)
+        const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
 
-    if (!parsed.ingredients || parsed.ingredients.trim().length < 5) return null
-    return {
-      product_name: parsed.product_name ?? productName,
-      ingredients: parsed.ingredients,
+        if (parsed.ingredients && parsed.ingredients.trim().length >= 5) {
+          return {
+            product_name: parsed.product_name ?? productName,
+            ingredients: parsed.ingredients,
+          }
+        }
+      } catch (err) {
+        console.warn(`[extract] web scrape: AI extraction failed for ${page.url}`, err)
+      }
     }
+
+    return null
   } catch (err) {
     console.warn('[extract] web scrape failed:', err)
     return null
@@ -317,6 +368,35 @@ function buildProductSearchQueries(query: string): string[] {
   addSearchVariant(variants, seen, base.replace(/\b(?:new|sealed|authentic|original|travel size|mini|value size)\b/gi, ' '))
 
   return variants
+}
+
+function extractObviousActiveIngredientFromName(
+  query: string
+): { product_name: string; ingredients: string } | null {
+  const normalized = normalizeSearchText(query)
+  const lower = normalized.toLowerCase()
+
+  const isopropylMatch =
+    lower.match(/\b(\d{2,3}(?:\.\d+)?)\s*%\s*isopropyl alcohol\b/) ??
+    lower.match(/\bisopropyl alcohol\s*(\d{2,3}(?:\.\d+)?)\s*%/)
+  if (isopropylMatch && lower.includes('antiseptic')) {
+    return {
+      product_name: normalized,
+      ingredients: `Active ingredient: Isopropyl alcohol ${isopropylMatch[1]}%`,
+    }
+  }
+
+  const hydrogenPeroxideMatch =
+    lower.match(/\b(\d{1,2}(?:\.\d+)?)\s*%\s*hydrogen peroxide\b/) ??
+    lower.match(/\bhydrogen peroxide\s*(\d{1,2}(?:\.\d+)?)\s*%/)
+  if (hydrogenPeroxideMatch && lower.includes('antiseptic')) {
+    return {
+      product_name: normalized,
+      ingredients: `Active ingredient: Hydrogen peroxide ${hydrogenPeroxideMatch[1]}%`,
+    }
+  }
+
+  return null
 }
 
 async function lookupBarcode(barcode: string) {
@@ -456,6 +536,11 @@ async function fetchProductByName(
   for (const searchQuery of queries) {
     const fdaResult = await lookupOpenFDAByName(searchQuery)
     if (fdaResult) return { ...fdaResult }
+  }
+
+  for (const searchQuery of queries) {
+    const obviousActiveIngredient = extractObviousActiveIngredientFromName(searchQuery)
+    if (obviousActiveIngredient) return obviousActiveIngredient
   }
 
   // Web scraping fallback — search the web and extract ingredients via AI
