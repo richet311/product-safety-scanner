@@ -155,6 +155,15 @@ function FruitGradientDefs() {
           <stop offset="55%" stopColor="#FB8C00" />
           <stop offset="100%" stopColor="#E65100" />
         </linearGradient>
+        <linearGradient id="fg-cleaning-body" x1="16" y1="24" x2="44" y2="62" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#E0F7FA" />
+          <stop offset="48%" stopColor="#26C6DA" />
+          <stop offset="100%" stopColor="#006064" />
+        </linearGradient>
+        <linearGradient id="fg-cleaning-neck" x1="28" y1="14" x2="36" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#B2EBF2" />
+          <stop offset="100%" stopColor="#00838F" />
+        </linearGradient>
       </defs>
     </svg>
   );
@@ -1085,6 +1094,33 @@ function UseCasesSection() {
   );
 }
 
+function CleaningSprayProduct({ className, style }: IconProps) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      {/* Spray mist dots */}
+      <circle cx="55" cy="16" r="1.8" fill="#26C6DA" fillOpacity="0.7" />
+      <circle cx="58" cy="13" r="1.2" fill="#26C6DA" fillOpacity="0.55" />
+      <circle cx="59" cy="19" r="1.2" fill="#26C6DA" fillOpacity="0.5" />
+      <circle cx="61" cy="15" r="0.9" fill="#26C6DA" fillOpacity="0.4" />
+      {/* Nozzle */}
+      <path d="M44 21 L52 21 L55 18 L52 15 L44 15 Z" fill="#006064" />
+      {/* Trigger */}
+      <path d="M36 17 L44 17 L44 25 Q40 27 36 25 Z" fill="#00838F" />
+      {/* Neck / tube */}
+      <rect x="28" y="14" width="8" height="15" rx="2" fill="url(#fg-cleaning-neck)" />
+      {/* Body */}
+      <path d="M16 30 Q16 24 24 24 H36 Q44 24 44 30 V52 Q44 61 32 61 Q20 61 18 52 Z" fill="url(#fg-cleaning-body)" />
+      {/* White label */}
+      <rect x="20" y="32" width="18" height="16" rx="3" fill="white" fillOpacity="0.86" />
+      {/* Checkmark / clean symbol */}
+      <path d="M25 40 L29 44 L37 34" stroke="#006064" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Highlight */}
+      <ellipse cx="23" cy="37" rx="3" ry="9" fill="white" fillOpacity="0.2" transform="rotate(-8 23 37)" />
+      <circle cx="22" cy="30" r="2.5" fill="white" fillOpacity="0.3" />
+    </svg>
+  );
+}
+
 // ── Food Universe Section ─────────────────────────────────────────────────────
 
 function FoodUniverseSection() {
@@ -1092,7 +1128,8 @@ function FoodUniverseSection() {
     { Fruit: AppleFruit,               label: "Food & Beverages" },
     { Fruit: CosmeticBottleProduct,    label: "Cosmetics & Skincare" },
     { Fruit: SupplementBottleProduct,  label: "Supplements" },
-    { Fruit: MedicationProduct,         label: "Medications & OTC" },
+    { Fruit: MedicationProduct,        label: "Medications & OTC" },
+    { Fruit: CleaningSprayProduct,     label: "Cleaning Products" },
   ];
 
   return (
@@ -1114,7 +1151,7 @@ function FoodUniverseSection() {
         </div>
 
         {/* Category cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {categories.map(({ Fruit, label }) => (
             <div
               key={label}

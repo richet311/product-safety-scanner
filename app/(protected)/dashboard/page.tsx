@@ -333,7 +333,7 @@ export default async function DashboardPage() {
               No scans yet
             </p>
             <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 28px', lineHeight: 1.6, fontFamily: 'inherit' }}>
-              Scan your first product to see ingredient safety analysis here.
+              Scan any product to see ingredient safety analysis. Works for food, beverages, cleaning products, medications, cosmetics, supplements, and more.
             </p>
             <Link href="/scanner" className="new-scan-btn" style={{ padding: '11px 24px', fontSize: '14px' }}>
               Scan your first product

@@ -146,6 +146,7 @@ export default function ScannerPage() {
     const json = await res.json()
     if (!res.ok) {
       setError(json.error ?? 'Scan failed. Please try again.')
+      setExtractState({ status: 'idle' })
       setLoading(false)
       return
     }
@@ -511,7 +512,7 @@ export default function ScannerPage() {
             New Scan
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13.5px', margin: 0, lineHeight: 1.5 }}>
-            Scan a barcode or take a photo of the product packaging.
+            Scan a barcode or photograph any label. Food, beverages, cleaning products, medications, cosmetics, and more.
           </p>
         </div>
 
@@ -592,7 +593,7 @@ export default function ScannerPage() {
               <div className="scan-card">
                 <p className="scan-card-title">Scan Barcode</p>
                 <p className="scan-card-desc">
-                  Point your camera at a product barcode. Works on most packaged foods and other items.
+                  Point your camera at a product barcode. Works on packaged food, beverages, cleaning products, medications, cosmetics, and more.
                 </p>
                 {!cameraUnsupported && extractState.status !== 'success' && (
                   <div style={{ marginBottom: '14px' }}>
@@ -634,7 +635,7 @@ export default function ScannerPage() {
               <div className="scan-card">
                 <p className="scan-card-title">Product Photo</p>
                 <p className="scan-card-desc">
-                  Take a photo of the ingredient or label name. Works for food, medication, supplements, and more.
+                  Take a photo of any product label. Food, cleaning products, medications, cosmetics, supplements, and more.
                 </p>
                 <input ref={labelUploadRef} type="file" accept="image/*" onChange={handleLabelFile} style={{ display: 'none' }} />
 
