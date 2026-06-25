@@ -17,8 +17,8 @@ AI-powered product safety scanner. Scan a barcode, photograph an ingredient labe
 |---|---|
 | Framework | Next.js 16 (App Router) |
 | Auth / Database / Storage | Supabase |
-| AI — vision extraction | Groq · `meta-llama/llama-4-scout-17b-16e-instruct` |
-| AI — ingredient analysis | Groq → Cerebras → SambaNova (waterfall fallback) |
+| AI — vision extraction | Groq (vision model) |
+| AI — ingredient analysis | Multiple providers with waterfall fallback |
 | Barcode reading | `@zxing/browser` + native `BarcodeDetector` |
 | Styling | Tailwind CSS + inline styles |
 
@@ -48,13 +48,7 @@ SAMBANOVA_API_KEY=your_sambanova_api_key
 
 ### AI Provider Fallback Chain
 
-Text analysis tries providers in order and falls through on any rate-limit (429) or failure:
-
-1. **Groq** — `llama-3.3-70b-versatile` (primary)
-2. **Cerebras** — `llama-3.3-70b` (fallback 1)
-3. **SambaNova** — `Meta-Llama-3.3-70B-Instruct` (fallback 2)
-
-All three run the same Llama 3.3 70B weights. Providers with no API key set are skipped automatically. Vision/photo extraction is Groq-only (`meta-llama/llama-4-scout-17b-16e-instruct`).
+Text analysis tries providers in order and falls through on any rate-limit or failure. Providers with no API key set are skipped automatically.
 
 ### Install and Run
 
