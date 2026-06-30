@@ -45,6 +45,9 @@ export async function POST(request: Request) {
 - Supplements: complete Supplement Facts panel
 - Cosmetics/K-beauty/J-beauty: full ingredient list (may start with "성분", "全成分", "成份")
 - Korean/Japanese/Chinese ingredients: translate to English INCI names (정제수→Water, 글리세린→Glycerin, 나이아신아마이드→Niacinamide, 알로에베라잎추출물→Aloe Barbadensis Leaf Extract, 히알루론산→Sodium Hyaluronate, 판테놀→Panthenol, 병풀추출물→Centella Asiatica Extract)
+- Other non-English labels (Spanish, Vietnamese, Thai, Arabic, Tagalog, etc., including halal/Mexican/Asian-market products): translate ingredient names to English the same way
+- Cans and bottles (soda, energy drinks, beer): ingredient text is often small and wraps around the curved surface near the nutrition facts panel — check the full label circumference, not just the front-facing area
+- Glare, curvature, or partial blur: transcribe whatever text is legible rather than giving up; only return null if truly no ingredient text is visible anywhere
 - If no ingredients visible, set ingredients to null but still return product_name
 - Transcribe ALL ingredient text — do not summarize or truncate`,
             },
