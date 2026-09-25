@@ -1,11 +1,9 @@
-import Groq from 'groq-sdk'
-import type { ChatCompletionContentPart } from 'groq-sdk/resources/chat/completions'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export const maxDuration = 60
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+const GEMINI_MODEL = 'gemini-flash-latest'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -22,19 +20,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    const completion = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [
-        {
-          role: 'user',
-          content: [
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
             {
-              type: 'image_url',
-              image_url: { url: `data:image/jpeg;base64,${image_base64}` },
-            },
-            {
-              type: 'text',
-              text: `Extract product name and full ingredient list from this label photo. Return JSON:
+              parts: [
+                { inline_data: { mime_type: 'image/jpeg', data: image_base64 } },
+                {
+                  text: `Extract product name and full ingredient list from this label photo. Return JSON:
 {"product_name": "brand and product name or null", "ingredients": "full ingredient list as text or null"}
 
 - Search entire image (back, sides, bottom) for ingredient text
@@ -50,16 +47,25 @@ export async function POST(request: Request) {
 - Glare, curvature, or partial blur: transcribe whatever text is legible rather than giving up; only return null if truly no ingredient text is visible anywhere
 - If no ingredients visible, set ingredients to null but still return product_name
 - Transcribe ALL ingredient text — do not summarize or truncate`,
+                },
+              ],
             },
-          ] as ChatCompletionContentPart[],
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0,
-      max_tokens: 2048,
-    })
+          ],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json',
+          },
+        }),
+      }
+    )
 
-    const content = completion.choices[0]?.message?.content
+    if (!res.ok) throw new Error(`Gemini request failed: ${res.status} ${await res.text()}`)
+
+    const data = await res.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+    }
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text
     if (!content) throw new Error('Empty response from vision model')
 
     let result: { product_name?: string | null; ingredients?: string | null }

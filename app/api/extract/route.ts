@@ -287,7 +287,7 @@ Rules:
 Page content:
 ${contentForAI}`
 
-    const aiContent = await callAI(extractPrompt, 1024)
+    const aiContent = await callAI(extractPrompt, 2048)
     const parsed = JSON.parse(aiContent) as { product_name?: string | null; ingredients?: string | null }
 
     if (!parsed.ingredients || parsed.ingredients.trim().length < 5) return null
